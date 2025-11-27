@@ -2,7 +2,7 @@ import subprocess
 
 # 啟動多個腳本
 processes = []
-scripts = ["lobby_server.py", "DB_server.py", "developer_server.py"]
+scripts = ["Lobby_server.py", "DB_server.py", "Developer_server.py"]
 
 for s in scripts:
     p = subprocess.Popen(["python", s])
