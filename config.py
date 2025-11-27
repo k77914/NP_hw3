@@ -1,0 +1,7 @@
+# address
+LOBBY_HOST = ""
+LOBBY_PORT = 15099
+DB_HOST = ""
+DB_PORT = 15199
+DEV_HOST = ""
+DEV_PROT = 15299
