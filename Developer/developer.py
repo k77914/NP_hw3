@@ -29,10 +29,10 @@ class DEVELOPER():
     def start(self):
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect(DEV_HOST, DEV_PORT)
+            self.sock.connect((DEV_HOST, DEV_PORT))
             self.main_route()
         except Exception as e:
-            print("error")
+            print("error_d")
         finally:
             if self.sock is not None:
                 try:

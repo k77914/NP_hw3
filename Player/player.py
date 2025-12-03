@@ -29,10 +29,10 @@ class PLAYER():
     def start(self):
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect(LOBBY_HOST, LOBBY_PORT)
+            self.sock.connect((LOBBY_HOST, LOBBY_PORT))
             self.main_route()
         except Exception as e:
-            print("error")
+            print(f"[!] {(LOBBY_HOST, LOBBY_PORT)} disconnected: {e}")
         finally:
             if self.sock is not None:
                 try:
@@ -85,14 +85,17 @@ class PLAYER():
 
                     request_data = {"username": username, "password": password}
                     send_json(self.sock, format(status=self.status, action="login", data=request_data, token=None))
-
+                    print("I sent")
                     recv_data = recv_json(self.sock)
+                    print(recv_data)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
-
+                    
                     if act == "login" and result == "ok":
-                        self.username = resp_data["username"]
+                        self.username = username
+                        print("ok there")
                         self.token = resp_data["token"]
                         self.status = STATUS.LOBBY
+                        print("to lobby")
                         break
 
                 # === change mode === #
@@ -110,6 +113,7 @@ class PLAYER():
                 # === illegal === #
                 case _:
                     self.last_msg = "Please Enter a number bewtween 1 to 4!"
+
     def lobby_page(self):
         while True:
             os.system('clear')
@@ -131,6 +135,7 @@ class PLAYER():
 # === helper === #
 def format(status, action, data:dict={}, token=None):
     return {"status": status, "action": action, "data": data, "token": token}
+
 def breakdown(resp: dict):
     action = resp["action"]
     result = resp["result"]
