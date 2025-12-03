@@ -1,5 +1,5 @@
-from Player.player import PLAYER
-from Developer.developer import DEVELOPER
+from NP_hw3.Player.player import PLAYER
+from NP_hw3.Developer.developer import DEVELOPER
 
 def main():
     while True:

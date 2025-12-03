@@ -17,7 +17,7 @@ class DB:
         self._stop_evt = threading.Event()
         self._writer = threading.Thread(target=self._writer_loop, daemon=True)
         self._writer.start()
-        print(f"[*] DB initialized from {self.path}")
+        # print(f"[*] DB initialized from {self.path}")
 
     #===================== Socket API ==============================#
     def create(self, new_data: dict):
@@ -77,8 +77,8 @@ class UDB(DB):
     def query(self, data):
         with self._lock:
             userlist = self._state  # 直接使用 _state 而非 read()
-            if data["account"] in userlist:
-                return copy.deepcopy(userlist[data["account"]])
+            if data["username"] in userlist:
+                return copy.deepcopy(userlist[data["username"]])
             return {}
 
     def _writer_loop(self):
@@ -101,30 +101,33 @@ class UDB(DB):
             if op == "create":
                 with self._lock:
                     new_account = {
-                        "username": args["account"],
                         "password": args["password"],
                         "status": "offline",
                         "token": "",
+                        "download": {},
                         "mailbox": []
                     }
-                    self._state[args["account"]] = new_account
+                    self._state[args["username"]] = new_account
                     dirty = True
                     batch += 1
+
             if op == "update":
+                # TODO for download
                 with self._lock:
-                    if args["account"] in self._state:
-                        self._state[args["account"]]["status"] = args.get("status", self._state[args["account"]]["status"])
-                        self._state[args["account"]]["token"] = args.get("token", self._state[args["account"]]["token"])
-                        if args.get("inv_msg", []) != "clear" and args.get("inv_msg", []) != []:
-                                self._state[args["account"]]["mailbox"].extend([args.get("inv_msg", [])])
+                    if args["username"] in self._state:
+                        self._state[args["username"]]["status"] = args.get("status", self._state[args["username"]]["status"])
+                        self._state[args["username"]]["token"] = args.get("token", self._state[args["username"]]["token"])
+                        if args.get("inv_msg", []) != "clear" and args.get("inv_msg", []) != []: # get inv msg
+                                self._state[args["username"]]["mailbox"].extend([args.get("inv_msg", [])])
                         elif args.get("inv_msg", []) == "clear":
-                            self._state[args["account"]]["mailbox"] = []
+                            self._state[args["username"]]["mailbox"] = []
                         dirty = True
                         batch += 1
+
             if op == "delete":
                 with self._lock:
-                    if args["account"] in self._state:
-                        del self._state[args["account"]]
+                    if args["username"] in self._state:
+                        del self._state[args["username"]]
                         dirty = True
                         batch += 1
 
@@ -147,7 +150,7 @@ class UDB(DB):
 
 def DB_handle_requset(conn: socket.socket, addr):
     set_keepalive(conn)
-    if addr[0] != LOBBY_HOST or addr[0] != DEV_HOST:
+    if addr[0] != LOBBY_HOST and addr[0] != DEV_HOST:
         logger.info("Invalid Accessing from other host : ", addr)
         send_json(conn, {})
         conn.close()
@@ -186,18 +189,20 @@ def DB_handle_requset(conn: socket.socket, addr):
 
 
 def main():
-    global player_db, DB_DICT
+    global player_db #, developer_db, room_db, game_store_db, DB_DICT
+    global DB_DICT
     player_db = UDB(PLAYER_JSON)
+    # TODO other db    
     
-
-    DB_DICT = {"UserDB": player_db}
+    DB_DICT = {"player_db": player_db} #, "developer_db": developer_db, "room_db": room_db, "game_store_db": game_store_db}
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as DBsrv:
         DBsrv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         DBsrv.bind((DB_HOST, DB_PORT))
         DBsrv.listen(128)
-        logger.info(f"[*] Listening on {DB_HOST}:{DB_PORT}")
+        logger.info(f"[*] DB server Listening on {DB_HOST}:{DB_PORT}")
         while True:
             conn, addr = DBsrv.accept()
             th = threading.Thread(target=DB_handle_requset, args=(conn, addr), daemon=True)
             th.start()
+main()

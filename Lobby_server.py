@@ -6,6 +6,14 @@ from TCP_tool import send_json, recv_json, set_keepalive
 class STATUS():
     INIT = 0
     LOBBY = 1
+class STATUS_DB():
+    INIT = "offline"
+    LOBBY = "lobby"
+class DB_type():
+    PLAYER = "player_db"
+    DEVELOPER = "developer_db"
+    ROOM = "room_db"
+    GAME_STORE = "game_store_db"
 
 # === helper === #
 def breakdown_request(request: dict):
@@ -51,11 +59,26 @@ def handle_client(conn: socket.socket, addr):
             match status:
                 case STATUS.INIT:
                     if action == "register":
-                        # TODO send request to DB
-                        pass
+                        regi_name = request_data["username"]
+                        resp_db_query = DB_request(DB_type.PLAYER, "query", {"username" : regi_name})
+                        if resp_db_query == {}:
+                            DB_request(DB_type.PLAYER, "create", request_data)
+                            send_json(conn, response_format(action=action, result="ok", data={}, msg="Register succuessfully"))
+                        else:
+                            send_json(conn, response_format(action, "error", {}, msg="Fail, change another username"))
                     elif action == "login":
-                        # TODO send request to DB
-                        pass
+                        login_name = request_data["username"]
+                        resp_db_query = DB_request(DB_type.PLAYER, "query", {"username" : login_name})
+                        # Not find
+                        if resp_db_query == {}:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Account doesn't exist!"))
+                        elif resp_db_query["password"] != request_data["password"]:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg={"Wrong password!"}))
+                        else:
+                            username = login_name
+                            token_srv = uuid.uuid4().hex
+                            DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.LOBBY, "token": token_srv})
+                            send_json(conn, response_format(action=action, result="ok", data={"token": token_srv}, msg="Login successfully!"))
                     else:
                         send_json(conn, response_format(action=action, result="error", data={}, msg=""))
                 case STATUS.LOBBY:
@@ -72,7 +95,7 @@ def main():
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind((LOBBY_HOST, LOBBY_PORT))
         srv.listen(128)
-        logger.info(f"[*] Listening on {LOBBY_HOST}:{LOBBY_HOST}")
+        logger.info(f"[*] Listening on {LOBBY_HOST}:{LOBBY_PORT}")
         while True:
             conn, addr = srv.accept()
             th = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
