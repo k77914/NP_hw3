@@ -2,7 +2,7 @@ import subprocess
 import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-env_name = "NP_hw3"
+# env_name = "NP_hw3"
 processes = []
 
 scripts = [
@@ -14,7 +14,7 @@ scripts = [
 for s in scripts:
     # p = subprocess.Popen(["conda", "run", "-n", env_name, "python", s])
     p = subprocess.Popen(["python", s])
-    print(s)
+    # print(s)
     processes.append(p)
 
 for p in processes:

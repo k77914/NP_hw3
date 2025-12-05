@@ -1,0 +1,30 @@
+{
+    "D1": {
+        "password": "D1",
+        "status": "lobby",
+        "token": "a81f8ce082924fd384290f20cf3e48d4",
+        "download": {},
+        "mailbox": []
+    },
+    "D2": {
+        "password": "D2",
+        "status": "lobby",
+        "token": "f5e1c178b87645c1b070b546853daab0",
+        "download": {},
+        "mailbox": []
+    },
+    "asd": {
+        "password": "asd",
+        "status": "lobby",
+        "token": "d10c9e71339a4cdea4c901ab988b3b1f",
+        "download": {},
+        "mailbox": []
+    },
+    "j": {
+        "password": "j",
+        "status": "lobby",
+        "token": "0cb9f5b5e26240e3b9ae80b6b53ebbb0",
+        "download": {},
+        "mailbox": []
+    }
+}

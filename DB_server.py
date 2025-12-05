@@ -148,6 +148,82 @@ class UDB(DB):
                 batch = 0
                 last_flush = time.time()
 
+class DDB(DB):
+    def query(self, data):
+        with self._lock:
+            userlist = self._state  # 直接使用 _state 而非 read()
+            if data["username"] in userlist:
+                return copy.deepcopy(userlist[data["username"]])
+            return {}
+
+    def _writer_loop(self):
+        dirty = False
+        batch = 0
+        last_flush = time.time()
+        while True:
+            timeout = max(0.0, self.commit_interval - (time.time() - last_flush))
+            try:
+                op, args = self._q.get(timeout=timeout)
+            except queue.Empty:
+                op = None
+            if op == "__stop__":
+                if dirty:
+                    with self._lock:
+                        self._atomic_write(self._state)
+                self._stop_evt.set()
+                return
+
+            if op == "create":
+                with self._lock:
+                    new_account = {
+                        "password": args["password"],
+                        "status": "offline",
+                        "token": "",
+                        "download": {},
+                        "mailbox": []
+                    }
+                    self._state[args["username"]] = new_account
+                    dirty = True
+                    batch += 1
+
+            if op == "update":
+                # TODO for download
+                with self._lock:
+                    if args["username"] in self._state:
+                        self._state[args["username"]]["status"] = args.get("status", self._state[args["username"]]["status"])
+                        self._state[args["username"]]["token"] = args.get("token", self._state[args["username"]]["token"])
+                        if args.get("inv_msg", []) != "clear" and args.get("inv_msg", []) != []: # get inv msg
+                                self._state[args["username"]]["mailbox"].extend([args.get("inv_msg", [])])
+                        elif args.get("inv_msg", []) == "clear":
+                            self._state[args["username"]]["mailbox"] = []
+                        dirty = True
+                        batch += 1
+
+            if op == "delete":
+                with self._lock:
+                    if args["username"] in self._state:
+                        del self._state[args["username"]]
+                        dirty = True
+                        batch += 1
+
+            if op is None:
+                # no request -> if dirty -> update
+                if dirty:
+                    with self._lock:
+                        self._atomic_write(self._state)
+                    dirty = False
+                    batch = 0
+                    last_flush = time.time()
+                continue
+
+            if batch >= self.max_batch:
+                with self._lock:
+                    self._atomic_write(self._state)
+                dirty = False
+                batch = 0
+                last_flush = time.time()
+
+
 def DB_handle_requset(conn: socket.socket, addr):
     set_keepalive(conn)
     if addr[0] != LOBBY_HOST and addr[0] != DEV_HOST:
@@ -192,9 +268,10 @@ def main():
     global player_db #, developer_db, room_db, game_store_db, DB_DICT
     global DB_DICT
     player_db = UDB(PLAYER_JSON)
+    developer_db = DDB(DEVELOPER_JSON)
     # TODO other db    
     
-    DB_DICT = {"player_db": player_db} #, "developer_db": developer_db, "room_db": room_db, "game_store_db": game_store_db}
+    DB_DICT = {"player_db": player_db, "developer_db": developer_db} #, "room_db": room_db, "game_store_db": game_store_db}
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as DBsrv:
         DBsrv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

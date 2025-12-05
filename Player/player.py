@@ -7,6 +7,10 @@ import time
 import queue
 import socket
 import os
+
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+DOWNLOAD_ROOT = BASE_DIR / "download"
 # for Enum
 class STATUS():
     INIT = 0
@@ -52,7 +56,7 @@ class PLAYER():
     
     def init_page(self):
         while True:
-            # os.system('clear')
+            os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Player mode) -----")
             print("Welcome to Online Game Shop System")
@@ -85,9 +89,7 @@ class PLAYER():
 
                     request_data = {"username": username, "password": password}
                     send_json(self.sock, format(status=self.status, action="login", data=request_data, token=None))
-                    print("I sent")
                     recv_data = recv_json(self.sock)
-                    print(recv_data)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
                     
                     if act == "login" and result == "ok":
@@ -95,7 +97,8 @@ class PLAYER():
                         print("ok there")
                         self.token = resp_data["token"]
                         self.status = STATUS.LOBBY
-                        print("to lobby")
+                        # TODO establish own download folder
+
                         break
 
                 # === change mode === #
@@ -168,3 +171,15 @@ def nb_input(prompt=">> ", conn=None):
                     return s
         # small sleep to avoid busy loop
         time.sleep(0.01)
+
+def ensure_user_download_dir(username: str) -> Path:
+    user_dir = DOWNLOAD_ROOT / str(username)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    return user_dir
+
+def save_download_file(user_id: str, file_name: str, content: bytes) -> Path:
+    user_dir = ensure_user_download_dir(user_id)
+    file_path = user_dir / file_name
+    with open(file_path, "wb") as f:
+        f.write(content)
+    return file_path

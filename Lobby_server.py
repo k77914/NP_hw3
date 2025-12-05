@@ -95,7 +95,7 @@ def main():
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind((LOBBY_HOST, LOBBY_PORT))
         srv.listen(128)
-        logger.info(f"[*] Listening on {LOBBY_HOST}:{LOBBY_PORT}")
+        logger.info(f"[*] Player server Listening on {LOBBY_HOST}:{LOBBY_PORT}")
         while True:
             conn, addr = srv.accept()
             th = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)

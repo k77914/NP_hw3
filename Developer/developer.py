@@ -52,7 +52,7 @@ class DEVELOPER():
     
     def init_page(self):
         while True:
-            # os.system('clear')
+            os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Developer mode) -----")
             print("Welcome to Online Game Shop System")
@@ -90,7 +90,7 @@ class DEVELOPER():
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
 
                     if act == "login" and result == "ok":
-                        self.username = resp_data["username"]
+                        self.username = username
                         self.token = resp_data["token"]
                         self.status = STATUS.LOBBY
                         break
@@ -114,13 +114,29 @@ class DEVELOPER():
         while True:
             os.system('clear')
             self.print_and_reset_last_msg()
-            print("----- Lobby page -----")
-            print("1. Open Game Store")
-            print("2. Play Game")
-            print("3. Open mailbox")
-            time.sleep(5.0)
+            print("----- Lobby page (Developer)-----")
+            print("1. Manage your game on game store")
+            print("2. Upload your game to game store")
+            print("3. Fast start to cteate game")
+            print("4. logout")
+            op = nb_input("Enter >> ", self.sock)
+            match op:
+                case "1":
+                    raise NotImplementedError
+                case "2":
+                    raise NotImplementedError
+                case "3":
+                    raise NotImplementedError
+                # === logout === #
+                case "4":
+                    send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
+                    # TODO receive Developer server's response.
+                    self.username = None
+                    self.token = None
+                    self.status = STATUS.INIT
+                case _:
+                    self.last_msg = "Please Enter a number bewtween 1 to 4!"
 
-    
     def print_and_reset_last_msg(self):
         if self.last_msg and self.last_msg != "":
             print("======================")
