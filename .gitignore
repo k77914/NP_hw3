@@ -1,0 +1,19 @@
+# Ignore all Python cache folders
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore local config or sensitive files (if any)
+*.env
+*.local
+
+# Ignore temporary files
+*.log
+.DS_Store
+
+# Ignore storage json if they are generated dynamically
+Storage_json/*.json
