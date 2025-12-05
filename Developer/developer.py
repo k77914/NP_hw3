@@ -51,7 +51,7 @@ class DEVELOPER():
                     self.lobby_page()
     
     def init_page(self):
-        while True:
+        while self.status == STATUS.INIT:
             os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Developer mode) -----")
@@ -93,7 +93,6 @@ class DEVELOPER():
                         self.username = username
                         self.token = resp_data["token"]
                         self.status = STATUS.LOBBY
-                        break
 
                 # === change mode === #
                 case "3":
@@ -111,7 +110,7 @@ class DEVELOPER():
                 case _:
                     self.last_msg = "Please Enter a number bewtween 1 to 4!"
     def lobby_page(self):
-        while True:
+        while self.status == STATUS.LOBBY:
             os.system('clear')
             self.print_and_reset_last_msg()
             print("----- Lobby page (Developer)-----")
@@ -122,18 +121,23 @@ class DEVELOPER():
             op = nb_input("Enter >> ", self.sock)
             match op:
                 case "1":
+                    # TODO send request to developer server and show the gamelist of him.
                     raise NotImplementedError
                 case "2":
+                    # TODO 
                     raise NotImplementedError
                 case "3":
+                    # TODO use template to generate {gamename}_client.py, {gamename}_server.py
                     raise NotImplementedError
                 # === logout === #
                 case "4":
                     send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
-                    # TODO receive Developer server's response.
-                    self.username = None
-                    self.token = None
-                    self.status = STATUS.INIT
+                    recv_data = recv_json(self.sock)
+                    act, result, resp_data, self.last_msg = breakdown(recv_data)
+                    if result == "token miss" or result == "ok":
+                        self.logout()
+                    else:
+                        pass
                 case _:
                     self.last_msg = "Please Enter a number bewtween 1 to 4!"
 
@@ -143,6 +147,11 @@ class DEVELOPER():
             print(f"{self.last_msg}")
             print("======================")
             self.last_msg = None
+
+    def logout(self):
+        self.username = None
+        self.token = None
+        self.status = STATUS.INIT
 
 # === helper === #
 def format(status, action, data:dict={}, token=None):

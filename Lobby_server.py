@@ -82,13 +82,35 @@ def handle_client(conn: socket.socket, addr):
                     else:
                         send_json(conn, response_format(action=action, result="error", data={}, msg=""))
                 case STATUS.LOBBY:
-                    pass
+                    if token != token_srv:
+                        # Not matching token, logout!
+                        username = None
+                        token_srv = None
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
+                        send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
+                        
+                    elif action == "":
+                        raise NotImplementedError
+                    elif action == "":
+                        raise NotImplementedError
+                    elif action == "":
+                        raise NotImplementedError
+                    elif action == "logout":
+                        username = None
+                        token_srv = None
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Logout successfully!"))
+                    else:
+                        send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
 
     except (ConnectionError, OSError) as e:
-            logger.info(f"[!] {addr} disconnected: {e}")
+        logger.info(f"[!] {addr} disconnected: {e}")
     finally:
         conn.close()
         logger.info(f"[*] closed {addr}")
+        if username != None:
+            # set to logout
+            DB_request(DB_type.PLAYER, "update", {"username": username, "status":STATUS_DB.INIT, "token":None})
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:

@@ -26,5 +26,19 @@
         "token": "0cb9f5b5e26240e3b9ae80b6b53ebbb0",
         "download": {},
         "mailbox": []
+    },
+    "a": {
+        "password": "a",
+        "status": "lobby",
+        "token": "7d2ef29586d542aaa936a8158cb6e539",
+        "download": {},
+        "mailbox": []
+    },
+    "b": {
+        "password": "b",
+        "status": "lobby",
+        "token": "116bb7780bd54b29ad7c1442f386868f",
+        "download": {},
+        "mailbox": []
     }
 }

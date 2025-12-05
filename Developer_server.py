@@ -74,21 +74,46 @@ def handle_client(conn: socket.socket, addr):
                             send_json(conn, response_format(action=action, result="error", data={}, msg="Account doesn't exist!"))
                         elif resp_db_query["password"] != request_data["password"]:
                             send_json(conn, response_format(action=action, result="error", data={}, msg={"Wrong password!"}))
+                        elif resp_db_query["status"] != STATUS_DB.INIT:
+                            send_json(conn, response_format(action=action, result="errro", data={}, msg="Account has logined!"))
                         else:
                             username = login_name
                             token_srv = uuid.uuid4().hex
                             DB_request(DB_type.DEVELOPER, "update", {"username": username, "status": STATUS_DB.LOBBY, "token": token_srv})
                             send_json(conn, response_format(action=action, result="ok", data={"token": token_srv}, msg="Login successfully!"))
                     else:
-                        send_json(conn, response_format(action=action, result="error", data={}, msg=""))
+                        send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
                 case STATUS.LOBBY:
-                    pass
+                    if token != token_srv:
+                        # Not matching token, logout!
+                        username = None
+                        token_srv = None
+                        DB_request(DB_type.DEVELOPER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
+                        send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
+
+                    if action == "":
+                        raise NotImplementedError
+                    elif action == "":
+                        raise NotImplementedError
+                    elif action == "":
+                        raise NotImplementedError
+                    elif action == "logout":
+                        username = None
+                        token_srv = None
+                        DB_request(DB_type.DEVELOPER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Logout successfully!"))
+                    else:
+                        send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
+
 
     except (ConnectionError, OSError) as e:
-            logger.info(f"[!] {addr} disconnected: {e}")
+        logger.info(f"[!] {addr} disconnected: {e}")
     finally:
         conn.close()
         logger.info(f"[*] closed {addr}")
+        if username != None:
+            # set to logout
+            DB_request(DB_type.DEVELOPER, "update", {"username": username, "status":STATUS_DB.INIT, "token":None})
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:

@@ -5,5 +5,12 @@
         "token": "ac9cd55dd29c432393d41d6b8793434e",
         "download": {},
         "mailbox": []
+    },
+    "a": {
+        "password": "a",
+        "status": "offline",
+        "token": "",
+        "download": {},
+        "mailbox": []
     }
 }
