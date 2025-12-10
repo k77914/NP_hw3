@@ -73,7 +73,7 @@ def handle_client(conn: socket.socket, addr):
                         if resp_db_query == {}:
                             send_json(conn, response_format(action=action, result="error", data={}, msg="Account doesn't exist!"))
                         elif resp_db_query["password"] != request_data["password"]:
-                            send_json(conn, response_format(action=action, result="error", data={}, msg={"Wrong password!"}))
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Wrong password!"))
                         else:
                             username = login_name
                             token_srv = uuid.uuid4().hex

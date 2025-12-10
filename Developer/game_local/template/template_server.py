@@ -2,8 +2,8 @@ import socket
 import json
 import sys
 import threading
-from ....config import LOBBY_HOST, LOBBY_PORT_GAMESERVER
-from ....TCP_tool import recv_json, send_json, set_keepalive
+from .....config import LOBBY_HOST, LOBBY_PORT_GAMESERVER
+from .....TCP_tool import recv_json, send_json, set_keepalive
 
 PLAYER_NUM = 2
 

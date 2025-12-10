@@ -6,9 +6,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 processes = []
 
 scripts = [
-    os.path.join(BASE_DIR, "Server/Lobby_server.py"),
-    os.path.join(BASE_DIR, "Server/DB_server.py"),
-    os.path.join(BASE_DIR, "Server/Developer_server.py"),
+    os.path.join(BASE_DIR, "Lobby_server.py"),
+    os.path.join(BASE_DIR, "DB_server.py"),
+    os.path.join(BASE_DIR, "Developer_server.py"),
 ]
 
 for s in scripts:

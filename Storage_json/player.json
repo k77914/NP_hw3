@@ -19,5 +19,12 @@
         "token": null,
         "download": {},
         "mailbox": []
+    },
+    "asdasd": {
+        "password": "asdasd",
+        "status": "offline",
+        "token": "",
+        "download": {},
+        "mailbox": []
     }
 }

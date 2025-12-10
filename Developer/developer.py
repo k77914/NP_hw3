@@ -145,28 +145,33 @@ class DEVELOPER():
                     print("Use cntrl+c to abort anytime.")
                     try:
                         gamename = nb_input("Enter your game name: ")
-                        max_players = nb_input("Enter max players: ")
+                        while True:
+                            max_players = nb_input("Enter max players: ")
+                            if max_players.isdigit() and int(max_players) >= 2:
+                                break
+                            else:
+                                print("Please enter a valid number (>=2).")
                         # cp whole template folder to working directory
                         template_dir = BASE_DIR_LOCAL / "template"
-
-                        os.system(f"cp -r {template_dir} ./game_local/{self.username}")
+                        # os.mkdir(f"./game_local/{self.username}", exist_ok=True)
+                        os.system(f"cp -r {template_dir} {BASE_DIR_LOCAL}/{self.username}")
                         # rename files
-                        # os.rename(f"./game_local/{self.username}/template_client.py", f"./game_local/{self.username}/{gamename}_client.py")
-                        # os.rename(f"./game_local/{self.username}/template_server.py", f"./game_local/{self.username}/{gamename}_server.py")
+                        os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/template {BASE_DIR_LOCAL}/{self.username}/{gamename}")
                         # overwrite config
-                        with open(f"./game_local/{self.username}/config.json", "w") as f:
-                            config_data = {
-                                "gamename": gamename,
-                                "author": self.username,
-                                "version": "1.0.0",
-                                "max_players": int(max_players),
-                                "game_type": "CUI",
-                                "last_update": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                            }
-                            json.dump(config_data, f, indent=4)
+                        f = open(f"{BASE_DIR_LOCAL}/{self.username}/{gamename}/config.json", "w")
+                        config_data = {
+                            "gamename": gamename,
+                            "author": self.username,
+                            "version": "1.0.0",
+                            "max_players": int(max_players),
+                            "game_type": "CUI",
+                            "last_update": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                        }
+                        json.dump(config_data, f, indent=4)
                         time.sleep(0.5)
                         self.last_msg = f"Game template '{gamename}' created successfully! Please check your working directory."
-
+                    except OSError as e:
+                        self.last_msg = f"File operation error: {e}"
                     except KeyboardInterrupt:
                         print("\nAborted!")
                         time.sleep(0.5)
