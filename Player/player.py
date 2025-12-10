@@ -56,7 +56,7 @@ class PLAYER():
     
     def init_page(self):
         while True:
-            os.system('clear')
+            # os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Player mode) -----")
             print("Welcome to Online Game Shop System")
@@ -125,6 +125,7 @@ class PLAYER():
             print("1. Open Game Store")
             print("2. Play Game")
             print("3. Open mailbox")
+            print("4. Logout")
             time.sleep(5.0)
 
     

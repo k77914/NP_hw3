@@ -9,7 +9,14 @@
     "a": {
         "password": "a",
         "status": "offline",
-        "token": "",
+        "token": null,
+        "download": {},
+        "mailbox": []
+    },
+    "c": {
+        "password": "c",
+        "status": "offline",
+        "token": null,
         "download": {},
         "mailbox": []
     }

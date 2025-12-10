@@ -40,5 +40,40 @@
         "token": "116bb7780bd54b29ad7c1442f386868f",
         "download": {},
         "mailbox": []
+    },
+    "A": {
+        "password": "A",
+        "status": "lobby",
+        "token": "27b49a5c2e4740d582b4217ddffb6b8c",
+        "download": {},
+        "mailbox": []
+    },
+    "B": {
+        "password": "B",
+        "status": "lobby",
+        "token": "fc8db664a72e4b5eaeddec688251da75",
+        "download": {},
+        "mailbox": []
+    },
+    "C": {
+        "password": "C",
+        "status": "lobby",
+        "token": "16261844c5d54117a6462c2cc4846c06",
+        "download": {},
+        "mailbox": []
+    },
+    "11": {
+        "password": "11",
+        "status": "lobby",
+        "token": "81f5990c1020482fb9403bc3be58accd",
+        "download": {},
+        "mailbox": []
+    },
+    "s": {
+        "password": "s",
+        "status": "offline",
+        "token": null,
+        "download": {},
+        "mailbox": []
     }
 }

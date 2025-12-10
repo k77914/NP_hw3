@@ -98,10 +98,11 @@ def handle_client(conn: socket.socket, addr):
                     elif action == "":
                         raise NotImplementedError
                     elif action == "logout":
-                        username = None
-                        token_srv = None
+
                         DB_request(DB_type.DEVELOPER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Logout successfully!"))
+                        username = None
+                        token_srv = None
                     else:
                         send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
 

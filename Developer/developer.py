@@ -7,6 +7,11 @@ import time
 import queue
 import socket
 import os
+import json
+
+from pathlib import Path
+BASE_DIR_LOCAL = Path(__file__).resolve().parent / "game_local"
+BASE_DIR_STORE = Path(__file__).resolve().parent / "game_store"
 # for Enum
 class STATUS():
     INIT = 0
@@ -93,6 +98,8 @@ class DEVELOPER():
                         self.username = username
                         self.token = resp_data["token"]
                         self.status = STATUS.LOBBY
+                        ensure_user_local_dir(self.username)
+                        ensure_user_store_dir(self.username)
 
                 # === change mode === #
                 case "3":
@@ -128,10 +135,44 @@ class DEVELOPER():
                     raise NotImplementedError
                 case "3":
                     # TODO use template to generate {gamename}_client.py, {gamename}_server.py
-                    raise NotImplementedError
+                    # Ask some info from developer
+                    os.system('clear')
+                    print("=== Fast create game ===")
+                    print("Please enter the following info to create your game template:")
+                    print("This is a CUI version game template.")
+                    print("Note: You need to implement the game logic by yourself later!")
+                    print("-----------------------------------")
+                    print("Use cntrl+c to abort anytime.")
+                    try:
+                        gamename = nb_input("Enter your game name: ")
+                        max_players = nb_input("Enter max players: ")
+                        # cp whole template folder to working directory
+                        template_dir = BASE_DIR_LOCAL / "template"
+
+                        os.system(f"cp -r {template_dir} ./game_local/{self.username}")
+                        # rename files
+                        # os.rename(f"./game_local/{self.username}/template_client.py", f"./game_local/{self.username}/{gamename}_client.py")
+                        # os.rename(f"./game_local/{self.username}/template_server.py", f"./game_local/{self.username}/{gamename}_server.py")
+                        # overwrite config
+                        with open(f"./game_local/{self.username}/config.json", "w") as f:
+                            config_data = {
+                                "gamename": gamename,
+                                "author": self.username,
+                                "version": "1.0.0",
+                                "max_players": int(max_players),
+                                "game_type": "CUI",
+                                "last_update": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                            }
+                            json.dump(config_data, f, indent=4)
+                        time.sleep(0.5)
+                        self.last_msg = f"Game template '{gamename}' created successfully! Please check your working directory."
+
+                    except KeyboardInterrupt:
+                        print("\nAborted!")
+                        time.sleep(0.5)
                 # === logout === #
                 case "4":
-                    send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
+                    send_json(self.sock, format(status=self.status, action="logout", data={"username": self.username}, token=self.token))
                     recv_data = recv_json(self.sock)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
                     if result == "token miss" or result == "ok":
@@ -188,3 +229,19 @@ def nb_input(prompt=">> ", conn=None):
                     return s
         # small sleep to avoid busy loop
         time.sleep(0.01)
+
+def ensure_user_local_dir(username: str) -> Path:
+    user_dir = BASE_DIR_LOCAL / str(username)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    return user_dir
+
+def ensure_user_store_dir(username: str) -> Path:
+    user_dir = BASE_DIR_STORE / str(username)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    return user_dir
+# def save_download_file(user_id: str, file_name: str, content: bytes) -> Path:
+#     user_dir = ensure_user_download_dir(user_id)
+#     file_path = user_dir / file_name
+#     with open(file_path, "wb") as f:
+#         f.write(content)
+#     return file_path
