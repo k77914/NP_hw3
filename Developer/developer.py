@@ -157,17 +157,21 @@ class DEVELOPER():
                         os.system(f"cp -r {template_dir} {BASE_DIR_LOCAL}/{self.username}")
                         # rename files
                         os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/template {BASE_DIR_LOCAL}/{self.username}/{gamename}")
+                        os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_client.py {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_client.py")
+                        os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_server.py {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_server.py")
+
                         # overwrite config
-                        f = open(f"{BASE_DIR_LOCAL}/{self.username}/{gamename}/config.json", "w")
-                        config_data = {
-                            "gamename": gamename,
-                            "author": self.username,
-                            "version": "1.0.0",
-                            "max_players": int(max_players),
-                            "game_type": "CUI",
-                            "last_update": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                        }
-                        json.dump(config_data, f, indent=4)
+                        with open(f"{BASE_DIR_LOCAL}/{self.username}/{gamename}/config.json", "w", encoding="utf-8") as f:
+                            print("config ok")
+                            config_data = {
+                                "gamename": gamename,
+                                "author": self.username,
+                                "version": "1.0.0",
+                                "max_players": int(max_players),
+                                "game_type": "CUI",
+                                "last_update": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                            }
+                            json.dump(config_data, f, indent=4, ensure_ascii=False)
                         time.sleep(0.5)
                         self.last_msg = f"Game template '{gamename}' created successfully! Please check your working directory."
                     except OSError as e:

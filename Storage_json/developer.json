@@ -89,5 +89,26 @@
         "token": "",
         "download": {},
         "mailbox": []
+    },
+    "admin": {
+        "password": "000",
+        "status": "offline",
+        "token": "",
+        "download": {},
+        "mailbox": []
+    },
+    "abc": {
+        "password": "abc",
+        "status": "offline",
+        "token": null,
+        "download": {},
+        "mailbox": []
+    },
+    "z": {
+        "password": "z",
+        "status": "offline",
+        "token": null,
+        "download": {},
+        "mailbox": []
     }
 }
