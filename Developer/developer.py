@@ -264,6 +264,7 @@ class DEVELOPER():
                                                 game_files[file.name] = gf.read()
                                     # prepare upload data
                                     upload_data = {
+                                        "username": self.username,
                                         "gamename": gamename,
                                         "config": config_data,
                                         "files": game_files

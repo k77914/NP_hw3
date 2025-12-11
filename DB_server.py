@@ -227,8 +227,17 @@ class GSDB(DB):
     def query(self, data):
         with self._lock:
             gamelist = self._state  # 直接使用 _state 而非 read()
-            if data["gamename"] in gamelist:
-                return copy.deepcopy(gamelist[data["gamename"]])
+            logger.info(f"GSDB query with data: {data}")
+            if data["gamename"] is None:
+                # return all games from a developer
+                result = {}
+                for gname, gconfig in gamelist.items():
+                    if gconfig["author"] == data["username"]:
+                        result[gname] = copy.deepcopy(gconfig)
+                return result
+            
+            if data["gamename"]+"_"+data["username"] in gamelist:
+                return copy.deepcopy(gamelist[data["gamename"]+"_"+data["username"]])
             return {}
 
     def _writer_loop(self):
@@ -250,7 +259,7 @@ class GSDB(DB):
 
             if op == "create":
                 with self._lock:
-                    self._state[args["gamename"]] = args["config"]
+                    self._state[args["gamename"]+"_"+args["username"]] = args["config"]
                     dirty = True
                     batch += 1
 

@@ -101,6 +101,7 @@ def handle_client(conn: socket.socket, addr):
                         # fetch all games from game store db
                         resp_db_query = DB_request(DB_type.GAME_STORE, "query", {"username": username, "gamename": None})
                         send_json(conn, response_format(action=action, result="ok", data=resp_db_query, msg="Fetch game list successfully!"))
+                        
                     elif action == "upload_game":
                         # receive game data and store to game store db
                         game_data = request_data
