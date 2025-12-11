@@ -134,7 +134,7 @@ class DEVELOPER():
                     # TODO 
                     raise NotImplementedError
                 case "3":
-                    # TODO use template to generate {gamename}_client.py, {gamename}_server.py
+                    # use template to generate {gamename}_client.py, {gamename}_server.py
                     # Ask some info from developer
                     os.system('clear')
                     print("=== Fast create game ===")

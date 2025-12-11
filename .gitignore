@@ -16,7 +16,7 @@ venv/
 .DS_Store
 
 # Ignore storage json if they are generated dynamically
-Storage_json/*.json
+Storage_json/
 
 Developer/game_local/
 !Developer/game_local/template/
