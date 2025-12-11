@@ -12,7 +12,7 @@ DEV_PORT = 15299
 PLAYER_JSON = "./NP_hw3/Storage_json/player.json"
 DEVELOPER_JSON = "./NP_hw3/Storage_json/developer.json"
 ROOM_JSON = "./NP_hw3/Storage_json/room.json"
-GAME_SHOP_JSON = "./NP_hw3/Storage_json/game_shop.json"
+GAME_STORE_JSON = "./NP_hw3/Storage_json/game_store.json"
 
 # # For download root
 # DOWNLOAD_ROOT = "./NP_hw3/Player/download"

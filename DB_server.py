@@ -1,7 +1,7 @@
 import uuid ,socket, threading, queue, copy, os, json, tempfile, time  #  For random user IDs and room IDs
 from loguru import logger
 from config import DB_HOST, DB_PORT, LOBBY_HOST, DEV_HOST # addr
-from config import PLAYER_JSON, DEVELOPER_JSON, ROOM_JSON, GAME_SHOP_JSON
+from config import PLAYER_JSON, DEVELOPER_JSON, ROOM_JSON, GAME_STORE_JSON
 
 from TCP_tool import set_keepalive, send_json, recv_json
 class DB:
@@ -223,6 +223,68 @@ class DDB(DB):
                 batch = 0
                 last_flush = time.time()
 
+class GSDB(DB):
+    def query(self, data):
+        with self._lock:
+            gamelist = self._state  # 直接使用 _state 而非 read()
+            if data["gamename"] in gamelist:
+                return copy.deepcopy(gamelist[data["gamename"]])
+            return {}
+
+    def _writer_loop(self):
+        dirty = False
+        batch = 0
+        last_flush = time.time()
+        while True:
+            timeout = max(0.0, self.commit_interval - (time.time() - last_flush))
+            try:
+                op, args = self._q.get(timeout=timeout)
+            except queue.Empty:
+                op = None
+            if op == "__stop__":
+                if dirty:
+                    with self._lock:
+                        self._atomic_write(self._state)
+                self._stop_evt.set()
+                return
+
+            if op == "create":
+                with self._lock:
+                    self._state[args["gamename"]] = args["config"]
+                    dirty = True
+                    batch += 1
+
+            if op == "update":
+                # TODO for download
+                with self._lock:
+                    if args["gamename"] in self._state:
+
+                        dirty = True
+                        batch += 1
+
+            if op == "delete":
+                with self._lock:
+                    if args["gamename"] in self._state:
+                        del self._state[args["gamename"]]
+                        dirty = True
+                        batch += 1
+
+            if op is None:
+                # no request -> if dirty -> update
+                if dirty:
+                    with self._lock:
+                        self._atomic_write(self._state)
+                    dirty = False
+                    batch = 0
+                    last_flush = time.time()
+                continue
+
+            if batch >= self.max_batch:
+                with self._lock:
+                    self._atomic_write(self._state)
+                dirty = False
+                batch = 0
+                last_flush = time.time()
 
 def DB_handle_requset(conn: socket.socket, addr):
     set_keepalive(conn)
@@ -265,13 +327,14 @@ def DB_handle_requset(conn: socket.socket, addr):
 
 
 def main():
-    global player_db #, developer_db, room_db, game_store_db, DB_DICT
+    global player_db, developer_db, game_store_db#, room_db, DB_DICT
     global DB_DICT
     player_db = UDB(PLAYER_JSON)
     developer_db = DDB(DEVELOPER_JSON)
+    game_store_db = GSDB(GAME_STORE_JSON)
     # TODO other db    
     
-    DB_DICT = {"player_db": player_db, "developer_db": developer_db} #, "room_db": room_db, "game_store_db": game_store_db}
+    DB_DICT = {"player_db": player_db, "developer_db": developer_db, "game_store_db": game_store_db} #, "room_db": room_db, "game_store_db": game_store_db}
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as DBsrv:
         DBsrv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
