@@ -19,7 +19,7 @@ venv/
 Storage_json/
 
 Developer/game_local/
-!Developer/game_local/template/
+!Developer/game_local/template/*
 
-Developer/game_store/
+
 

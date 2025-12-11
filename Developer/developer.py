@@ -99,7 +99,7 @@ class DEVELOPER():
                         self.token = resp_data["token"]
                         self.status = STATUS.LOBBY
                         ensure_user_local_dir(self.username)
-                        ensure_user_store_dir(self.username)
+                        # ensure_user_store_dir(self.username)
 
                 # === change mode === #
                 case "3":
