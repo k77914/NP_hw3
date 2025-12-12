@@ -1,9 +1,8 @@
 import uuid ,socket, threading, queue, copy, os, json, tempfile, time  #  For random user IDs and room IDs
 from loguru import logger
-from config import DB_HOST, DB_PORT, LOBBY_HOST, DEV_HOST # addr
-from config import PLAYER_JSON, DEVELOPER_JSON, ROOM_JSON, GAME_STORE_JSON
-
-from TCP_tool import set_keepalive, send_json, recv_json
+from NP_hw3.config import DB_HOST, DB_PORT, LOBBY_HOST, DEV_HOST # addr
+from NP_hw3.config import PLAYER_JSON, DEVELOPER_JSON, ROOM_JSON, GAME_STORE_JSON
+from NP_hw3.TCP_tool import set_keepalive, send_json, recv_json
 class DB:
     def __init__(self, path: str, commit_interval: float = 0.5, max_batch: int = 64):
         self.path = path
@@ -231,9 +230,11 @@ class GSDB(DB):
             if data["gamename"] is None:
                 # return all games from a developer
                 result = {}
+                logger.info(f"{gamelist}")
                 for gname, gconfig in gamelist.items():
                     if gconfig["author"] == data["username"]:
                         result[gname] = copy.deepcopy(gconfig)
+                logger.info(f"GSDB query result: {result}")
                 return result
             
             if data["gamename"]+"_"+data["username"] in gamelist:

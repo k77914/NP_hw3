@@ -135,13 +135,17 @@ class DEVELOPER():
                     recv_data = recv_json(self.sock)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
                     # server will return the game list of this developer
-                    game_on_store = resp_data.get("game_list", [])
-                    if game_on_store:
+                    game_on_store_dict = resp_data.get("game_list", {})
+                    if game_on_store_dict:
                         print("=========================")
                         print("Your games on game store:")
                         print("=========================")
-                        for i, game in enumerate(game_on_store, start=1):
+                        # gamename is str like "gamename_author"
+                        game_on_store_list = []
+                        print(game_on_store_dict)
+                        for i, game in enumerate(game_on_store_dict, start=1):
                             print(f"{i}. {game}")
+                            game_on_store_list.append(game)
                         print("=========================")
                         while True:
                             choice = nb_input("Enter the number of the game to view details (or 'q' to abort): ")
@@ -149,11 +153,12 @@ class DEVELOPER():
                                 print("Aborted.")
                                 time.sleep(0.5)
                                 break
-                            if choice.isdigit() and 1 <= int(choice) <= len(game_on_store):
-                                selected_game = game_on_store[int(choice) - 1]
+                            if choice.isdigit() and 1 <= int(choice) <= len(game_on_store_list):
+                                selected_game = game_on_store_list[int(choice) - 1]
+                                gamename = ori_gamename(selected_game)
                                 while True:
                                     print("=========================")
-                                    print(f"{selected_game} Options:")
+                                    print(f"{gamename} Options:")
                                     print("1. View Details")
                                     print("2. Update Game on Store")
                                     print("3. Delete Game from Store")
@@ -162,18 +167,11 @@ class DEVELOPER():
                                     match sub_choice:
                                         case "1":
                                             # View Details
-                                            send_json(self.sock, format(status=self.status, action="view_game_details", data={"gamename": selected_game}, token=self.token))
-                                            details_resp = recv_json(self.sock)
-                                            act_d, result_d, resp_data_d, self.last_msg = breakdown(details_resp)
-                                            if act_d == "view_game_details" and result_d == "ok":
-                                                game_details = resp_data_d.get("game_details", {})
-                                                print(f"--- Details of {selected_game} ---")
-                                                for key, value in game_details.items():
-                                                    print(f"{key}: {value}")
-                                                print("-------------------------------")
-                                                nb_input("Press Enter to continue...")
-                                            else:
-                                                self.last_msg = f"Failed to get game details: {self.last_msg}"
+                                            print(f"--- Details of {gamename} ---")
+                                            for key, value in game_on_store_dict[selected_game].items():
+                                                print(f"{key}: {value}")
+                                            print("-------------------------------")
+                                            nb_input("Press Enter to continue...")
                                         case "2":
                                             # Update Game on Store
                                             print("Feature not implemented yet.")
@@ -181,6 +179,7 @@ class DEVELOPER():
                                             # Delete Game from Store
                                             print("Feature not implemented yet.")
                                         case "4":
+                                            self.last_msg = "Back to the lobby"
                                             break
                                         case _:
                                             print("Please enter a valid option (1-4).")
@@ -358,6 +357,10 @@ def breakdown(resp: dict):
     data   = resp["data"]
     msg    = resp["msg"]
     return action, result, data, msg
+
+def ori_gamename(gameid: str) -> str:
+    # gameid = gamename + _ + developername -> remove all thing that behind the _.
+    return gameid.strip("_")
 
 def nb_input(prompt=">> ", conn=None):
     print(prompt, end="", flush=True)
