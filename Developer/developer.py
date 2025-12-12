@@ -1,3 +1,4 @@
+from sympy import re
 from ..config import DEV_HOST, DEV_PORT
 from ..TCP_tool import set_keepalive, recv_json, send_json
 import threading
@@ -72,7 +73,13 @@ class DEVELOPER():
                 case "1":
                     os.system('clear')
                     print("\n=== Register ===")
-                    username = nb_input("Account: ")
+                    # block "_" in username
+                    while True:
+                        username = nb_input("Account: ")
+                        if "_" in username:
+                            print("Username cannot contain '_'. Please enter again.")
+                        else:
+                            break
                     password = nb_input("Password: ")
 
                     request_data = {"username": username, "password": password}
@@ -126,28 +133,29 @@ class DEVELOPER():
             print("2. Upload your game to game store")
             print("3. Fast start to cteate game")
             print("4. logout")
-            op = nb_input("Enter >> ", self.sock)
+            op = nb_input("Enter >> ")
             match op:
                 case "1":
                     # TODO send request to developer server and show the gamelist of him.
-                    resquest_data = {"username": self.username}
-                    send_json(self.sock, format(status=self.status, action="manage_game", data=resquest_data, token=self.token))
-                    recv_data = recv_json(self.sock)
-                    act, result, resp_data, self.last_msg = breakdown(recv_data)
-                    # server will return the game list of this developer
-                    game_on_store_dict = resp_data.get("game_list", {})
-                    if game_on_store_dict:
-                        print("=========================")
-                        print("Your games on game store:")
-                        print("=========================")
-                        # gamename is str like "gamename_author"
-                        game_on_store_list = []
-                        print(game_on_store_dict)
-                        for i, game in enumerate(game_on_store_dict, start=1):
-                            print(f"{i}. {game}")
-                            game_on_store_list.append(game)
-                        print("=========================")
-                        while True:
+                    while True:
+                        request_data = {"username": self.username}
+                        send_json(self.sock, format(status=self.status, action="manage_game", data=request_data, token=self.token))
+                        recv_data = recv_json(self.sock)
+                        act, result, resp_data, self.last_msg = breakdown(recv_data)
+                        # server will return the game list of this developer
+                        game_on_store_dict = resp_data.get("game_list", {})
+                        if game_on_store_dict:
+                            print("=========================")
+                            print("Your games on game store:")
+                            print("=========================")
+                            # gamename is str like "gamename_author"
+                            game_on_store_list = []
+                            # print(game_on_store_dict)
+                            for i, game in enumerate(game_on_store_dict, start=1):
+                                print(f"{i}. {ori_gamename(game)}")
+                                game_on_store_list.append(game)
+                            print("=========================")
+
                             choice = nb_input("Enter the number of the game to view details (or 'q' to abort): ")
                             if choice.lower() == 'q':
                                 print("Aborted.")
@@ -155,10 +163,10 @@ class DEVELOPER():
                                 break
                             if choice.isdigit() and 1 <= int(choice) <= len(game_on_store_list):
                                 selected_game = game_on_store_list[int(choice) - 1]
-                                gamename = ori_gamename(selected_game)
+                                gamename = game_on_store_dict[selected_game].get("gamename", "unknown")
                                 while True:
                                     print("=========================")
-                                    print(f"{gamename} Options:")
+                                    print(f"\"{gamename}\" Options:")
                                     print("1. View Details")
                                     print("2. Update Game on Store")
                                     print("3. Delete Game from Store")
@@ -167,27 +175,32 @@ class DEVELOPER():
                                     match sub_choice:
                                         case "1":
                                             # View Details
+                                            os.system('clear')
                                             print(f"--- Details of {gamename} ---")
                                             for key, value in game_on_store_dict[selected_game].items():
                                                 print(f"{key}: {value}")
                                             print("-------------------------------")
-                                            nb_input("Press Enter to continue...")
                                         case "2":
                                             # Update Game on Store
+                                            # TODO: 
                                             print("Feature not implemented yet.")
                                         case "3":
                                             # Delete Game from Store
+                                            # TODO: print the warning msg that ask developer to text the game name again.
+                                            # ok remove from Game Store.
+                                            # can use ctrl+c to cancel.
                                             print("Feature not implemented yet.")
                                         case "4":
-                                            self.last_msg = "Back to the lobby"
+                                            self.last_msg = "Back to previous menu"
                                             break
                                         case _:
                                             print("Please enter a valid option (1-4).")
-                                break
                             else:
                                 print("Invalid choice. Please enter a valid number or 'q' to abort.")
-                    else:
-                        self.last_msg = "You have no game on the game store."
+                        else:
+                            self.last_msg = "You have no game on the game store."
+                            break
+                # === upload game === #
                 case "2":
                     print("=== Upload your game to game store ===")
                     # look local game dir
@@ -219,23 +232,26 @@ class DEVELOPER():
                                         self.last_msg = f"Config file not found in {selected_game_dir}. Please create a config.json file."
                                         break
                                     print("Please fill in the game config info:")
+                                    print("press enter to use default value where applicable.")
+                                    print("Use cntrl+c to abort anytime.")
                                     # max_players
                                     while True:
-                                        max_players = nb_input("Enter max players: ")
+                                        max_players = nb_input("Enter max players [default: 2]: ", default="2")
                                         if max_players.isdigit() and int(max_players) >= 2:
                                             break
                                         else:
                                             print("Please enter a valid number (>=2).")
                                     # version
                                     while True:
-                                        version = nb_input("Enter game version (e.g., 1.0.0): ")
-                                        if version:
+                                        version = nb_input("Enter game version [default: 1.0.0]: ", default="1.0.0")
+                                        # check the version format, must be like x.y.z
+                                        if re.match(r"^\d+\.\d+\.\d+$", version):
                                             break
                                         else:
                                             print("Please enter a valid version string.")
                                     # game_type
                                     while True:
-                                        game_type = nb_input("Enter game type (CUI/GUI): ")
+                                        game_type = nb_input("Enter game type (CUI/GUI) [default: CUI]: ", default="CUI")
                                         if game_type in {"CUI", "GUI"}:
                                             break
                                         else:
@@ -284,6 +300,7 @@ class DEVELOPER():
                     except KeyboardInterrupt:
                         print("\nUpload aborted.")
                         time.sleep(0.5)
+                # === fast create game === #
                 case "3":
                     # use template to generate {gamename}_client.py, {gamename}_server.py
                     # Ask some info from developer
@@ -360,10 +377,11 @@ def breakdown(resp: dict):
 
 def ori_gamename(gameid: str) -> str:
     # gameid = gamename + _ + developername -> remove all thing that behind the _.
-    return gameid.strip("_")
+    return gameid.rsplit("_", 1)[0]
 
-def nb_input(prompt=">> ", conn=None):
+def nb_input(prompt=">> ", default=None, conn=None):
     print(prompt, end="", flush=True)
+
     while True:
         # check server socket first
         if conn:
@@ -377,15 +395,19 @@ def nb_input(prompt=">> ", conn=None):
                 if resp:
                     # TODO non blocking
                     pass
+
         # check stdin
         r, _, _ = select.select([sys.stdin], [], [], 0.05)
         if r:
             s = sys.stdin.readline()
-            if s:
-                s = s.strip()
-                if s:
+            if s is not None:
+                s = s.rstrip("\n")
+                if s == "":
+                    if default is not None:
+                        return default
+                else:
                     return s
-        # small sleep to avoid busy loop
+
         time.sleep(0.01)
 
 def ensure_user_local_dir(username: str) -> Path:

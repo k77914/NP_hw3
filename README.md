@@ -9,7 +9,10 @@ You can use my environment.yaml or install those dependence.
 ## How to run
 ```bash
 # set up server
-python -m NP_hw3.script.py
+python -m NP_hw3.script
 # run client
-python -m NP_hw3.client.py
+python -m NP_hw3.client
 ```
+## Operation
+When you run client, you will see the basic menu.
+TODO
