@@ -183,13 +183,94 @@ class DEVELOPER():
                                         case "2":
                                             # Update Game on Store
                                             # TODO: 
-                                            print("Feature not implemented yet.")
+                                            # 1. check the config is valid first.
+                                            # 2. ask developer to fill in the new config info. (version must be higher than before)
+                                            # 3. send update request to server.
+                                            ori_config = game_on_store_dict[selected_game].get("config", {})
+                                            print("Current config:")
+                                            for key, value in ori_config.items():
+                                                print(f"{key}: {value}")
+                                            print("Please fill in the new config info:")
+                                            # version
+                                            while True:
+                                                version = nb_input("Enter new game version: ")
+                                                if is_valid_version(version):
+                                                    # check version higher than before
+                                                    ori_version = ori_config.get("version", "0.0.0")
+                                                    if tuple(map(int, version.split('.'))) > tuple(map(int, ori_version.split('.'))):
+                                                        break
+                                                    else:
+                                                        print(f"New version must be higher than the current version ({ori_version}).")
+                                                else:
+                                                    print("Please enter a valid version string.")
+                                            new_config = {
+                                                "gamename": gamename,
+                                                "author": self.username,
+                                                "max_players": ori_config.get("max_players", 2),
+                                                "version": version,
+                                                "game_type": ori_config.get("game_type", "CUI"),
+                                                "last_update": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                                            }
+                                            # overwrite the origin cofig in local folder
+                                            user_local_dir = ensure_user_local_dir(self.username)
+                                            game_dir = user_local_dir / gamename
+                                            config_path = game_dir / "config.json"
+                                            try:
+                                                with open(config_path, "w", encoding="utf-8") as cf:
+                                                    json.dump(new_config, cf, indent=4, ensure_ascii=False)
+                                                    time.sleep(0.1)
+                                                print("Local config updated successfully.")
+                                            except Exception as e:
+                                                print(f"Failed to update local config: {e}")
+                                            # 4. send update request to server (also the files)
+                                            game_files = {}
+                                            for file in game_dir.iterdir():
+                                                if file.is_file() and file.suffix in {".py", ".txt", ".md"}:
+                                                    try:
+                                                        with open(file, "r", encoding="utf-8") as gf:
+                                                            game_files[file.name] = gf.read()
+                                                    except Exception as e:
+                                                        print(f"Failed to read file {file.name}: {e}")
+                                            # ensure developer upload
+                                            upload_data = {
+                                                "username": self.username,
+                                                "gamename": gamename,
+                                                "files": game_files,
+                                                "config": new_config
+                                            }
+                                            send_json(self.sock, format(status=self.status, action="update_game", data=upload_data, token=self.token))
+                                            recv_data = recv_json(self.sock)
+                                            act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                            if act == "update_game" and result == "ok":
+                                                self.last_msg = f"Game '{gamename}' updated successfully!"
+                                                break
+                                            else:
+                                                self.last_msg = f"Failed to update game: {self.last_msg}"
                                         case "3":
                                             # Delete Game from Store
                                             # TODO: print the warning msg that ask developer to text the game name again.
                                             # ok remove from Game Store.
                                             # can use ctrl+c to cancel.
-                                            print("Feature not implemented yet.")
+                                            confirm_name = nb_input(f"Type the game name '{gamename}' again to confirm deletion: ")
+                                            if confirm_name == gamename:
+                                                delete_data = {
+                                                    "username": self.username,
+                                                    "gamename": gamename
+                                                }
+                                                send_json(self.sock, format(status=self.status, action="delete_game", data=delete_data, token=self.token))
+                                                recv_data = recv_json(self.sock)
+                                                print(recv_data)
+                                                act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                                if act == "delete_game" and result == "ok":
+                                                    print("ok")
+                                                    self.last_msg = f"Game '{gamename}' deleted successfully from game store!"
+                                                    break
+                                                else:
+                                                    print("fall")
+                                                    self.last_msg = f"Failed to delete game: {self.last_msg}"
+                                            else:
+                                                self.last_msg = "Deletion cancelled."
+
                                         case "4":
                                             self.last_msg = "Back to previous menu"
                                             break
@@ -231,44 +312,10 @@ class DEVELOPER():
                                     if not config_path.exists():
                                         self.last_msg = f"Config file not found in {selected_game_dir}. Please create a config.json file."
                                         break
-                                    print("Please fill in the game config info:")
-                                    print("press enter to use default value where applicable.")
-                                    print("Use cntrl+c to abort anytime.")
-                                    # max_players
-                                    while True:
-                                        max_players = nb_input("Enter max players [default: 2]: ", default="2")
-                                        if max_players.isdigit() and int(max_players) >= 2:
-                                            break
-                                        else:
-                                            print("Please enter a valid number (>=2).")
-                                    # version
-                                    while True:
-                                        version = nb_input("Enter game version [default: 1.0.0]: ", default="1.0.0")
-                                        # check the version format, must be like x.y.z
-                                        if re.match(r"^\d+\.\d+\.\d+$", version):
-                                            break
-                                        else:
-                                            print("Please enter a valid version string.")
-                                    # game_type
-                                    while True:
-                                        game_type = nb_input("Enter game type (CUI/GUI) [default: CUI]: ", default="CUI")
-                                        if game_type in {"CUI", "GUI"}:
-                                            break
-                                        else:
-                                            print("Please enter either 'CUI' or 'GUI'.")
-
-                                    # last_update
-                                    last_update = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
+                                    # fill config
+                                    config_data = fill_config(gamename, self.username)
+                                    # write
                                     with open(config_path, "w", encoding="utf-8") as cf:
-                                        config_data = {
-                                            "gamename": gamename,
-                                            "author": self.username,
-                                            "max_players": int(max_players),
-                                            "version": version,
-                                            "game_type": game_type,
-                                            "last_update": last_update
-                                        }
                                         json.dump(config_data, cf, indent=4, ensure_ascii=False)
                                         time.sleep(0.1)
                                     # read game files
@@ -379,6 +426,45 @@ def ori_gamename(gameid: str) -> str:
     # gameid = gamename + _ + developername -> remove all thing that behind the _.
     return gameid.rsplit("_", 1)[0]
 
+def fill_config(gamename: str, username: str) -> dict:
+    print("Please fill in the game config info:")
+    print("press enter to use default value where applicable.")
+    print("Use cntrl+c to abort anytime.")
+    # max_players
+    while True:
+        max_players = nb_input("Enter max players [default: 2]: ", default="2")
+        if max_players.isdigit() and int(max_players) >= 2:
+            break
+        else:
+            print("Please enter a valid number (>=2).")
+    # version
+    while True:
+        version = nb_input("Enter game version [default: 1.0.0]: ", default="1.0.0")
+        # check the version format, must be like x.y.z
+        if is_valid_version(version):
+            break
+        else:
+            print("Please enter a valid version string.")
+    # game_type
+    while True:
+        game_type = nb_input("Enter game type (CUI/GUI) [default: CUI]: ", default="CUI")
+        if game_type in {"CUI", "GUI"}:
+            break
+        else:
+            print("Please enter either 'CUI' or 'GUI'.")
+
+    # last_update
+    last_update = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    config_data = {
+        "gamename": gamename,
+        "author": username,
+        "max_players": int(max_players),
+        "version": version,
+        "game_type": game_type,
+        "last_update": last_update
+    }
+    return config_data
+
 def nb_input(prompt=">> ", default=None, conn=None):
     print(prompt, end="", flush=True)
 
@@ -425,3 +511,9 @@ def ensure_user_store_dir(username: str) -> Path:
 #     with open(file_path, "wb") as f:
 #         f.write(content)
 #     return file_path
+
+def is_valid_version(v):
+    parts = v.split('.')
+    if len(parts) != 3:
+        return False
+    return all(p.isdigit() for p in parts)

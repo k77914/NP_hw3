@@ -265,10 +265,9 @@ class GSDB(DB):
                     batch += 1
 
             if op == "update":
-                # TODO for download
                 with self._lock:
-                    if args["gamename"] in self._state:
-
+                    if args["gamename"]+"_"+args["username"] in self._state:
+                        self._state[args["gamename"]+"_"+args["username"]] = args["config"]
                         dirty = True
                         batch += 1
 

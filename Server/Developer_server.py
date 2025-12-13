@@ -94,8 +94,28 @@ def handle_client(conn: socket.socket, addr):
                         DB_request(DB_type.DEVELOPER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
 
-                    if action == "":
-                        raise NotImplementedError
+                    if action == "update_game":
+                        # receive game data and update to game store db
+                        game_data = request_data
+                        # update config data to DB
+                        logger.info(f"Updating game '{game_data}' to GAME_STORE DB")
+                        DB_request(DB_type.GAME_STORE, "update", game_data)
+                        # update files on server side
+                        # create path to store game files
+                        create_path = pathlib.Path(GAME_STORE_PATH)
+                        folder_name = game_data["gamename"] + "_" + username
+                        os.makedirs(create_path / folder_name, exist_ok=True)
+                        # store config file
+                        with open(create_path / folder_name / "config.json", 'w') as f:
+                            import json
+                            json.dump(game_data['config'], f, indent=4)
+                        # store each file
+                        for filename, filecontent in game_data['files'].items():
+                            with open(create_path / folder_name / filename, 'wb') as f:
+                                f.write(filecontent.encode('latin1'))  # assuming filecontent is str, encode to bytes
+                        
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Update game successfully!"))
+
                     elif action == "manage_game":
                         # fetch all games from game store db
                         resp_db_query = DB_request(DB_type.GAME_STORE, "query", {"username": username, "gamename": None})
@@ -124,6 +144,20 @@ def handle_client(conn: socket.socket, addr):
                         DB_request(DB_type.GAME_STORE, "create", game_data)
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Upload game successfully!"))
 
+                    elif action == "delete_game":
+                        game_data = request_data
+                        # delete from DB
+                        logger.info(f"Deleting game '{game_data}' from GAME_STORE DB")
+                        create_path = pathlib.Path(GAME_STORE_PATH)
+                        folder_name = game_data["gamename"] + "_" + username
+                        game_data = {"gamename": folder_name}                        
+                        DB_request(DB_type.GAME_STORE, "delete", game_data)
+                        # delete files on server side
+                        # create path to store game files
+
+                        import shutil
+                        shutil.rmtree(create_path / folder_name, ignore_errors=True)
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Delete game successfully!"))
 
                     elif action == "logout":
                         DB_request(DB_type.DEVELOPER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
@@ -131,6 +165,7 @@ def handle_client(conn: socket.socket, addr):
                         username = None
                         token_srv = None
                     else:
+                        logger.info(f"Unknown action {action} from {addr}")
                         send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
 
 
