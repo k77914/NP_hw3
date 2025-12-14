@@ -58,7 +58,7 @@ class DEVELOPER():
     
     def init_page(self):
         while self.status == STATUS.INIT:
-            os.system('clear')
+            # os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Developer mode) -----")
             print("Welcome to Online Game Shop System")

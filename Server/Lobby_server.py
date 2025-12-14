@@ -2,6 +2,9 @@ import socket, threading, uuid
 from loguru import logger
 from NP_hw3.config import LOBBY_HOST, LOBBY_PORT, DB_HOST, DB_PORT
 from NP_hw3.TCP_tool import send_json, recv_json, set_keepalive
+import pathlib
+
+GAME_STORE_DIR = pathlib.Path(__file__).resolve().parent / "GameStore"
 
 class STATUS():
     INIT = 0
@@ -90,13 +93,29 @@ def handle_client(conn: socket.socket, addr):
                         send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
                         
                     elif action == "open_shop":
-                        raise NotImplementedError
+                        resp_db_query = DB_request(DB_type.GAME_STORE, "read", {})
+                        send_json(conn, response_format(action=action, result="ok", data={"games": resp_db_query}, msg=""))
+                    elif action == "download_game":
+                        gamename = request_data["gamename"]
+                        # directly read from GameStore
+                        gamedir = GAME_STORE_DIR / gamename
+                        if not gamedir.exists():
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Game not found"))
+                            continue
+                        # read config.json
+                        with open(gamedir / "config.json", "r") as f:
+                            config = f.read()
+                        # read all files instead of server
+                        files_data = {}
+                        for file in gamedir.iterdir():
+                            if file.name == "config.json" or "server.py" in file.name:
+                                continue
+                            with open(file, "rb") as f:
+                                files_data[file.name] = f.read().decode('latin1')
+                        send_json(conn, response_format(action=action, result="ok", data={"config": config, "files": files_data}, msg="Download success"))
+
                     elif action == "play_game":
                         raise NotImplementedError
-                    elif action == "open_mailbox":
-                        resp_db_query = DB_request(DB_type.PLAYER, "query", {"username": username})
-                        send_json(conn, response_format(action=action, result="ok", data={"mailbox": resp_db_query["mailbox"]}, msg=""))
-
                     elif action == "logout":
                         username = None
                         token_srv = None

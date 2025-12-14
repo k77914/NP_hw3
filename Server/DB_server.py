@@ -102,24 +102,17 @@ class UDB(DB):
                     new_account = {
                         "password": args["password"],
                         "status": "offline",
-                        "token": "",
-                        "download": {},
-                        "mailbox": []
+                        "token": ""
                     }
                     self._state[args["username"]] = new_account
                     dirty = True
                     batch += 1
 
             if op == "update":
-                # TODO for download
                 with self._lock:
                     if args["username"] in self._state:
                         self._state[args["username"]]["status"] = args.get("status", self._state[args["username"]]["status"])
                         self._state[args["username"]]["token"] = args.get("token", self._state[args["username"]]["token"])
-                        if args.get("inv_msg", []) != "clear" and args.get("inv_msg", []) != []: # get inv msg
-                                self._state[args["username"]]["mailbox"].extend([args.get("inv_msg", [])])
-                        elif args.get("inv_msg", []) == "clear":
-                            self._state[args["username"]]["mailbox"] = []
                         dirty = True
                         batch += 1
 

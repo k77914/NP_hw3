@@ -7,6 +7,7 @@ import time
 import queue
 import socket
 import os
+import json
 
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
@@ -124,8 +125,7 @@ class PLAYER():
             print("----- Lobby page -----")
             print("1. Open Game Store")
             print("2. Play Game")
-            print("3. Open mailbox")
-            print("4. Logout")
+            print("3. Logout")
             op = nb_input(prompt=">> ")
             if op not in ["1", "2", "3", "4"]:
                 self.last_msg = "Please Enter a number bewtween 1 to 4!"
@@ -133,14 +133,85 @@ class PLAYER():
             match op:
                 case "1":
                     # TODO open game store
-                    self.last_msg = "Not implemented yet!"
+                    while True:
+                        send_json(self.sock, format(status=self.status, action="open_shop", data={}, token=self.token))
+                        recv_data = recv_json(self.sock)
+                        act, result, resp_data, self.last_msg = breakdown(recv_data)
+                        
+                        # list all games on the store, and ask user to choose one.
+                        if act == "open_shop" and result == "ok":
+                            games = resp_data["games"]
+                            print("=== Game Store ===")
+                            # enumerate games
+                            for idx, (game_name, game_info) in enumerate(games.items(), start=1):
+                                print(f"{idx}. {game_info["gamename"]} - Author: {game_info['author']} - version: {game_info["version"]}")
+                            op = nb_input("Choose a game number to take the action, or '0' to go back:")
+                            if op == "0":
+                                break
+
+                            if not op.isdigit() or int(op) < 1 or int(op) > len(games):
+                                print("Invalid input, please try again.")
+                                continue
+                            game_idx = int(op) - 1
+                            game_name = list(games.keys())[game_idx]
+                            game_info = games[game_name]
+                            os.system('clear')
+                            while True:
+                                
+                                print(f"Selected Game: {game_info['gamename']} by {game_info['author']}")
+                                print("1. See Details")
+                                print("2. Download Game")
+                                print("3. Back to Game List")
+                                op = nb_input(">> ")
+                                os.system('clear')
+                                match op:
+                                    case "1": # see details
+                                        print(f"=== Details of {game_info['gamename']} ===")
+                                        print(f"Name: {game_info['gamename']}")
+                                        print(f"Author: {game_info['author']}")
+                                        print(f"Version: {game_info['version']}")
+                                        print(f"Max Players: {game_info['max_players']}")
+                                        print(f"game type: {game_info['game_type']}")
+                                        print(f"Last Update: {game_info['last_update']}")
+                                        print("----------------------------------------")
+                                    case "2": # download game
+                                        print(f"Downloading {game_info['gamename']}...")
+                                        send_json(self.sock, format(status=self.status, action="download_game", data={"gamename": game_name}, token=self.token))
+                                        recv_data = recv_json(self.sock)
+                                        act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                        if act == "download_game" and result == "ok":
+                                            # at DOWNLOAD PATH
+                                            # resp_data expected to contain files mapping and optional config
+                                            files = resp_data.get("files", {}) if isinstance(resp_data, dict) else {}
+                                            config = resp_data.get("config") if isinstance(resp_data, dict) else None
+                                            # use game_info gamename for folder name if available
+
+                                            target_dir = ensure_user_download_dir(self.username) / game_name
+                                            os.makedirs(target_dir, exist_ok=True)
+                                            with open(target_dir / "config.json", "w") as f:
+                                                json.dump(config, f, indent=4)
+                                            
+                                            for filename, filecontent in resp_data['files'].items():
+                                                file_path = target_dir / filename
+                                                with open(file_path, "wb") as f:
+                                                    f.write(filecontent.encode('latin1'))
+                                            
+                                            print(f"Game {game_info['gamename']} downloaded successfully to {target_dir}!")
+                                            break
+                                        else:
+                                            print("Failed to download the game.")
+                                    case "3": # go back game list
+                                        os.system('clear')
+                                        break
+                                    case _:
+                                        os.system("clear")
+                                        print("Invalid input, please try again.")
+                                        print("----------------------")
+
                 case "2":
                     # TODO play game
                     self.last_msg = "Not implemented yet!"
                 case "3":
-                    # TODO open mailbox
-                    self.last_msg = "Not implemented yet!"
-                case "4":
                     send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
                     recv_data = recv_json(self.sock)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
