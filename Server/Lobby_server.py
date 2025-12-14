@@ -89,12 +89,14 @@ def handle_client(conn: socket.socket, addr):
                         DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
                         
-                    elif action == "":
+                    elif action == "open_shop":
                         raise NotImplementedError
-                    elif action == "":
+                    elif action == "play_game":
                         raise NotImplementedError
-                    elif action == "":
-                        raise NotImplementedError
+                    elif action == "open_mailbox":
+                        resp_db_query = DB_request(DB_type.PLAYER, "query", {"username": username})
+                        send_json(conn, response_format(action=action, result="ok", data={"mailbox": resp_db_query["mailbox"]}, msg=""))
+
                     elif action == "logout":
                         username = None
                         token_srv = None

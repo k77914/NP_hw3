@@ -126,7 +126,7 @@ class DEVELOPER():
 
     def lobby_page(self):
         while self.status == STATUS.LOBBY:
-            # os.system('clear')
+            os.system('clear')
             self.print_and_reset_last_msg()
             print("----- Lobby page (Developer)-----")
             print("1. Manage your game on game store")
@@ -138,6 +138,7 @@ class DEVELOPER():
                 case "1":
                     # TODO send request to developer server and show the gamelist of him.
                     while True:
+                        os.system('clear')
                         request_data = {"username": self.username}
                         send_json(self.sock, format(status=self.status, action="manage_game", data=request_data, token=self.token))
                         recv_data = recv_json(self.sock)
@@ -157,6 +158,7 @@ class DEVELOPER():
                             print("=========================")
 
                             choice = nb_input("Enter the number of the game to view details (or 'q' to abort): ")
+                            os.system("clear")
                             if choice.lower() == 'q':
                                 print("Aborted.")
                                 time.sleep(0.5)
@@ -165,6 +167,7 @@ class DEVELOPER():
                                 selected_game = game_on_store_list[int(choice) - 1]
                                 gamename = game_on_store_dict[selected_game].get("gamename", "unknown")
                                 while True:
+                                    
                                     print("=========================")
                                     print(f"\"{gamename}\" Options:")
                                     print("1. View Details")
@@ -262,14 +265,17 @@ class DEVELOPER():
                                                 print(recv_data)
                                                 act, result, resp_data, self.last_msg = breakdown(recv_data)
                                                 if act == "delete_game" and result == "ok":
-                                                    print("ok")
-                                                    self.last_msg = f"Game '{gamename}' deleted successfully from game store!"
+                                                    print(f"Game '{gamename}' deleted successfully from game store!")
+                                                    time.sleep(2)
                                                     break
                                                 else:
-                                                    print("fall")
-                                                    self.last_msg = f"Failed to delete game: {self.last_msg}"
+                                                    os.system('clear')
+                                                    print(f"Failed to delete game: {gamename}.")
+                                                    time.sleep(0.5)
                                             else:
-                                                self.last_msg = "Deletion cancelled."
+                                                os.system('clear')
+                                                print("Game name mismatch. Deletion aborted.")
+                                                time.sleep(0.5)
 
                                         case "4":
                                             self.last_msg = "Back to previous menu"
@@ -283,6 +289,7 @@ class DEVELOPER():
                             break
                 # === upload game === #
                 case "2":
+                    os.system('clear')
                     print("=== Upload your game to game store ===")
                     # look local game dir
                     user_local_dir = ensure_user_local_dir(self.username)

@@ -126,7 +126,29 @@ class PLAYER():
             print("2. Play Game")
             print("3. Open mailbox")
             print("4. Logout")
-            time.sleep(5.0)
+            op = nb_input(prompt=">> ")
+            if op not in ["1", "2", "3", "4"]:
+                self.last_msg = "Please Enter a number bewtween 1 to 4!"
+                continue
+            match op:
+                case "1":
+                    # TODO open game store
+                    self.last_msg = "Not implemented yet!"
+                case "2":
+                    # TODO play game
+                    self.last_msg = "Not implemented yet!"
+                case "3":
+                    # TODO open mailbox
+                    self.last_msg = "Not implemented yet!"
+                case "4":
+                    send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
+                    recv_data = recv_json(self.sock)
+                    act, result, resp_data, self.last_msg = breakdown(recv_data)
+                    if act == "logout" and result == "ok":
+                        self.username = None
+                        self.token = None
+                        self.status = STATUS.INIT
+                        break
 
     
     def print_and_reset_last_msg(self):
