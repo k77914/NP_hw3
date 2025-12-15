@@ -16,7 +16,8 @@ DOWNLOAD_ROOT = BASE_DIR / "download"
 class STATUS():
     INIT = 0
     LOBBY = 1
-    
+    ROOM = 2
+    INGAME = 3
 class PLAYER():
     # ======= setting ======= #
     def __init__(self):
@@ -29,6 +30,7 @@ class PLAYER():
         self.username = None
         self.token = False
         self.filepath = None
+        self.room_id = None
 
     # connect to Client Server
     def start(self):
@@ -209,9 +211,149 @@ class PLAYER():
                                         print("----------------------")
 
                 case "2":
-                    # TODO play game
-                    self.last_msg = "Not implemented yet!"
-                case "3":
+                    # ask user which game to play
+                    GAME_FOLDER_PATH = DOWNLOAD_ROOT / self.username
+                    available_games = [d for d in GAME_FOLDER_PATH.iterdir() if d.is_dir()]
+                    if not available_games:
+                        self.last_msg = "No downloaded games found. Please download a game first."
+                        continue
+                    print("=== Available Games ===")
+                    for idx, game_dir in enumerate(available_games, start=1):
+                        game, author = game_dir.name.rsplit("_", 1)
+                        print(f"{idx}. {game}, by {author}")
+                    op = nb_input("Choose a game number to play, or '0' to go back:")
+                    if op == "0":
+                        continue
+                    if not op.isdigit() or int(op) < 1 or int(op) > len(available_games):
+                        print("Invalid input, please try again.")
+                        continue
+                    game_idx = int(op) - 1
+                    selected_game_dir = available_games[game_idx]
+                    # check version from config.json
+                    config_path = selected_game_dir / "config.json"
+                    if not config_path.exists():
+                        print("config.json not found for the selected game. Cannot verify version.")
+                        continue
+                    with open(config_path, "r") as f:
+                        config = json.load(f)
+                    local_version = config.get("version")
+                    # inform server to check version
+                    send_json(self.sock, format(status=self.status, action="check_version", data={"gamename": selected_game_dir.name, "version": local_version}, token=self.token))
+                    recv_data = recv_json(self.sock)
+                    act, result, resp_data, self.last_msg = breakdown(recv_data)
+                    if act != "check_version" or result != "ok":
+                        while True:
+                            print("Version check failed or game is outdated. Please download the latest version.")
+                            print("--------------------------")
+                            print("1. Auto-download latest version")
+                            print("2. Back to Lobby")
+                            op = nb_input(">> ")
+                            if op == "1":
+                                send_json(self.sock, format(status=self.status, action="download_game", data={"gamename": selected_game_dir.name}, token=self.token))
+                                recv_data = recv_json(self.sock)
+                                act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                if act == "download_game" and result == "ok":
+                                    # overwrite existing files
+                                    with open(config_path, "w") as f:
+                                        json.dump(resp_data["config"], f, indent=4)
+                                    
+                                    for filename, filecontent in resp_data["files"].items():
+                                        file_path = selected_game_dir / filename
+                                        with open(file_path, "wb") as f:
+                                            f.write(filecontent.encode('latin1'))
+                                    
+                                    print(f"Game {selected_game_dir.name} updated successfully!")
+                                    break
+                                else:
+                                    print("Failed to download the latest version.")
+                            elif op == "2":
+                                break
+                            else:
+                                print("Invalid input, please try again.")
+                    while True:
+                        print("--------------------------")
+                        print("Game: ", selected_game_dir.name.rsplit("_", 1)[0])
+                        print("1. Create Room")
+                        print("2. Join Room")
+                        print(f"3. Learn More about {selected_game_dir.name.rsplit('_', 1)[0]}")
+                        print("4. Back to Lobby")
+                        op = nb_input(">> ")
+                        os.system('clear')
+                        match op:
+                            case "1": # create room
+                                room_password = nb_input("Set room password (or leave empty for no password): ", default="")
+                                send_json(self.sock, format(status=self.status, action="create_room", data={"gamename": selected_game_dir.name, "room_password": room_password}, token=self.token))
+                                recv_data = recv_json(self.sock)
+                                act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                if act == "create_room" and result == "ok":
+                                    room_id = resp_data.get("room_id")
+                                    print(f"Room {room_id} created successfully! Waiting for players to join...")
+                                    self.status = STATUS.ROOM
+                                    self.room_id = room_id
+                                    break
+                                else:
+                                    print("Failed to create room. Try again.")
+                            case "2": # Join room
+                                # List all rooms.
+                                send_json(self.sock, format(status=self.status, action="list_rooms", data={"gamename": selected_game_dir.name}, token=self.token))
+                                recv_data = recv_json(self.sock)
+                                act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                if act == "list_rooms" and result == "ok":
+                                    rooms = resp_data.get("rooms", [])
+                                    if not rooms:
+                                        print("No available rooms to join. Try creating one.")
+                                        continue
+                                    print("=== Available Rooms ===")
+                                    for idx, room in enumerate(rooms, start=1):
+                                        print(f"{idx}. Room ID: {room['room_id']}, Players: {room['current_players']}/{room['max_players']}, Password Protected: {'Yes' if room['has_password'] else 'No'}")
+                                    op = nb_input("Choose a room number to join, or '0' to go back:")
+                                    if op == "0":
+                                        continue
+                                    if not op.isdigit() or int(op) < 1 or int(op) > len(rooms):
+                                        print("Invalid input, please try again.")
+                                        continue
+                                    room_idx = int(op) - 1
+                                    selected_room = rooms[room_idx]
+                                    room_id = selected_room['room_id']
+                                    room_password = ""
+                                    if selected_room['has_password']:
+                                        room_password = nb_input("Enter room password: ")
+                                    send_json(self.sock, format(status=self.status, action="join_room", data={"room_id": room_id, "room_password": room_password}, token=self.token))
+                                    recv_data = recv_json(self.sock)
+                                    act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                    if act == "join_room" and result == "ok":
+                                        print(f"Joined Room {room_id} successfully! Waiting for game to start...")
+                                        self.status = STATUS.ROOM
+                                        self.room_id = room_id
+                                        break
+                                    else:
+                                        print("Failed to join room. Check password or try another room.")
+                                else:
+                                    print("Failed to retrieve room list. Try again.")
+                            case "3": # learn more
+                                print(f"=== About {selected_game_dir.name.rsplit('_', 1)[0]} ===")
+                                readme_path = selected_game_dir / "README.txt"
+                                if readme_path.exists():
+                                    with open(readme_path, "r") as f:
+                                        print(f.read())
+                                else:
+                                    print("No additional information available for this game.")
+                            case "4": # back to lobby
+                                break
+                            case _:
+                                print("Invalid input, please try again.")
+
+                    print(f"Launching game: {selected_game_dir.name} ...")
+                    send_json(self.sock, format(status=self.status, action="play_game", data={"gamename" : selected_game_dir.name}, token=self.token))
+                    recv_data = recv_json(self.sock)
+                    act, result, resp_data, self.last_msg = breakdown(recv_data)
+                    if act == "play_game" and result == "ok":
+                        print(f"Game {selected_game_dir.name} started successfully!")
+                    else:
+                        print("Failed to start the game.")
+                        continue
+
+                case "3": # logout
                     send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
                     recv_data = recv_json(self.sock)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
@@ -240,7 +382,7 @@ def breakdown(resp: dict):
     msg    = resp["msg"]
     return action, result, data, msg
 
-def nb_input(prompt=">> ", conn=None):
+def nb_input(prompt=">> ", conn=None, default=""):
     print(prompt, end="", flush=True)
     while True:
         # check server socket first
@@ -259,10 +401,14 @@ def nb_input(prompt=">> ", conn=None):
         r, _, _ = select.select([sys.stdin], [], [], 0.05)
         if r:
             s = sys.stdin.readline()
-            if s:
-                s = s.strip()
-                if s:
+            if s is not None:
+                s = s.rstrip("\n")
+                if s == "":
+                    if default is not None:
+                        return default
+                else:
                     return s
+
         # small sleep to avoid busy loop
         time.sleep(0.01)
 

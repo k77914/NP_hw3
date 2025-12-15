@@ -9,14 +9,36 @@ GAME_STORE_DIR = pathlib.Path(__file__).resolve().parent / "GameStore"
 class STATUS():
     INIT = 0
     LOBBY = 1
+    ROOM = 2
+    INGAME = 3
 class STATUS_DB():
     INIT = "offline"
     LOBBY = "lobby"
+    ROOM = "room"
+    INGAME = "ingame"
 class DB_type():
     PLAYER = "player_db"
     DEVELOPER = "developer_db"
     ROOM = "room_db"
     GAME_STORE = "game_store_db"
+
+# Socket dict for players
+# player_sockets = {
+#     addr: socket.socket()
+# }
+player_sockets = {}
+
+
+# Room dict
+# structure:
+# rooms: {
+#  gamename:{
+#     room_id : game_info
+#     room_id2: game_info ...
+#  }
+#}
+rooms = {}
+
 
 # === helper === #
 def breakdown_request(request: dict):
@@ -79,6 +101,7 @@ def handle_client(conn: socket.socket, addr):
                             send_json(conn, response_format(action=action, result="error", data={}, msg="Wrong password!"))
                         else:
                             username = login_name
+                            player_sockets[addr]["username"] = username
                             token_srv = uuid.uuid4().hex
                             DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.LOBBY, "token": token_srv})
                             send_json(conn, response_format(action=action, result="ok", data={"token": token_srv}, msg="Login successfully!"))
@@ -105,6 +128,9 @@ def handle_client(conn: socket.socket, addr):
                         # read config.json
                         with open(gamedir / "config.json", "r") as f:
                             config = f.read()
+                            # turn string into dict
+                            import json
+                            config = json.loads(config)
                         # read all files instead of server
                         files_data = {}
                         for file in gamedir.iterdir():
@@ -114,8 +140,68 @@ def handle_client(conn: socket.socket, addr):
                                 files_data[file.name] = f.read().decode('latin1')
                         send_json(conn, response_format(action=action, result="ok", data={"config": config, "files": files_data}, msg="Download success"))
 
-                    elif action == "play_game":
-                        raise NotImplementedError
+                    elif action == "check_version":
+                        gamename = request_data["gamename"]
+                        user_version = request_data["version"]
+                        # directly read from GameStore
+                        gamedir = GAME_STORE_DIR / gamename
+                        if not gamedir.exists():
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Game not found"))
+                            continue
+                        # read config.json
+                        with open(gamedir / "config.json", "r") as f:
+                            config = f.read()
+                        if config["version"] == user_version:
+                            send_json(conn, response_format(action=action, result="ok", data={}, msg="You have the latest version"))
+                        else:
+                            send_json(conn, response_format(action=action, result="error"), data={}, msg="New version released!")
+                    elif action == "create_room":
+                        # use dict
+                        room_info = {
+                            "host": username,
+                            "players": [(username, addr)],
+                            "room_password": request_data.get("room_password", "")
+                        }
+                        gamename = request_data["gamename"]
+                        if gamename not in rooms:
+                            rooms[gamename] = {}
+                        rooms[gamename][username] = room_info
+                        # update player status
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.ROOM})
+                        send_json(conn, response_format(action=action, result="ok", data={"room_id": username}, msg="Room created successfully"))
+
+                    elif action == "list_rooms":
+                        gamename = request_data["gamename"]
+                        if gamename not in rooms:
+                            rooms[gamename] = {}
+                        room_list = []
+                        with open(GAME_STORE_DIR / gamename / "config.json", "r") as f:
+                            config = f.read()
+                        max_players = config.get("max_players", 2)
+                        for room_id, info in rooms[gamename].items():
+                            room_list.append({
+                                "room_id": room_id,
+                                "host": info["host"],
+                                "current_players": len(info["players"]),
+                                "max_players" : max_players,
+                                "has_password": info["room_password"] != ""
+                            })
+                        send_json(conn, response_format(action=action, result="ok", data={"rooms": room_list}, msg=""))
+                    elif action == "join_room":
+                        gamename = request_data["gamename"]
+                        room_id = request_data["room_id"]
+                        room_password = request_data.get("room_password", "")
+                        if gamename not in rooms or room_id not in rooms[gamename]:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Room not found"))
+                            continue
+                        room_info = rooms[gamename][room_id]
+                        if room_info["room_password"] != room_password:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Wrong room password"))
+                            continue
+                        room_info["players"].append((username, addr))
+                        # update player status
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.ROOM})
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Joined room successfully"))
                     elif action == "logout":
                         username = None
                         token_srv = None
@@ -128,6 +214,7 @@ def handle_client(conn: socket.socket, addr):
         logger.info(f"[!] {addr} disconnected: {e}")
     finally:
         conn.close()
+        player_sockets.pop(addr)
         logger.info(f"[*] closed {addr}")
         if username != None:
             # set to logout
@@ -141,6 +228,7 @@ def main():
         logger.info(f"[*] Player server Listening on {LOBBY_HOST}:{LOBBY_PORT}")
         while True:
             conn, addr = srv.accept()
+            player_sockets[addr] = {"conn":conn, "username": None}
             th = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
             th.start()
 
