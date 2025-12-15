@@ -178,10 +178,11 @@ def handle_client(conn: socket.socket, addr):
 
                         room_info = {
                             "host": username,
-                            "players": [(username, addr)],
+                            "players": [[username, addr, 1]],
                             "max_players": config["max_players"],
                             "room_password": request_data.get("room_password", ""),
-                            "gaming": False
+                            "gaming": False,
+                            "ready_cnt": 1
                         }
 
                         if gamename not in rooms:
@@ -227,25 +228,31 @@ def handle_client(conn: socket.socket, addr):
                         if room_info["room_password"] != room_password:
                             send_json(conn, response_format(action=action, result="error", data={}, msg="Wrong room password"))
                             continue
-                        room_info["players"].append((username, addr))
+                        room_info["players"].append([username, addr, 0])
                         # update player status
                         DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.ROOM})
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Joined room successfully"))
                         # notify other players about new player
-                        for player, player_addr in room_info["players"]:
+                        for player, player_addr, _ in room_info["players"]:
                             if player == username:
                                 continue
                             player_conn = player_sockets[player_addr]["conn"]
                             send_json(player_conn, response_format(action="room_update", result="ok", data={"players": room_info["players"]}, msg=f"Player {username} joined the room"))
                     elif action == "logout":
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         username = None
                         token_srv = None
-                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Logout successfully!"))
                     else:
                         send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
 
                 case STATUS.ROOM:
+                    player_room = None
+                    game = request_data.get("gamename", None)
+                    room_id = request_data.get("room_id", None)
+                    game_rooms = rooms.get(game, {})
+                    player_room = game_rooms.get(room_id, None)
+
                     if token != token_srv:
                         # Not matching token, logout!
                         username = None
@@ -253,34 +260,20 @@ def handle_client(conn: socket.socket, addr):
                         DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
                     elif action == "list_players_in_room":
-                        # find which room the player is in
-                        player_room = None
-                        for gamename, gamerooms in rooms.items():
-                            for room_id, info in gamerooms.items():
-                                for player, _ in info["players"]:
-                                    if player == username:
-                                        player_room = info
-                                        break
                         if player_room is None:
                             send_json(conn, response_format(action=action, result="error", data={}, msg="You are not in any room"))
                             continue
-                        player_list = [player for player, _ in player_room["players"]]
+                        player_list = [[player, _ , ready] for player, _ , ready in player_room["players"]]
                         send_json(conn, response_format(action=action, result="ok", data={"players": player_list, "host": player_room["host"], "room_password": player_room["room_password"]}, msg=""))
                     elif action == "leave_room":
-                        player_room = None
-                        game = request_data.get("gamename", None)
-                        room_id = request_data.get("room_id", None)
-                        game_rooms = rooms.get(game, {})
-                        player_room = game_rooms.get(room_id, None)
-
                         if player_room is None:
                             send_json(conn, response_format(action=action, result="error", data={}, msg="You are not in any room"))
                             continue
                         # remove player from room
-                        player_room["players"] = [(player, addr) for player, addr in player_room["players"] if player != username]
+                        player_room["players"] = [[player, addr, ready] for player, addr, ready in player_room["players"] if player != username]
                         # host leave
                         if player_room["host"] == username:
-                            for player, player_addr in player_room["players"]:
+                            for player, player_addr, ready in player_room["players"]:
                                 player_conn = player_sockets[player_addr]["conn"]
                                 send_json(player_conn, response_format(action="room_closed", result="ok", data={}, msg="Host closed the room!"))
                                 DB_request(DB_type.PLAYER, "update", {"username": player, "status": STATUS_DB.LOBBY})
@@ -290,13 +283,27 @@ def handle_client(conn: socket.socket, addr):
                         DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.LOBBY})
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Left room successfully"))
                         # notify other players about player leaving
-                        for player, player_addr in player_room["players"]:
+                        for player, player_addr, _ in player_room["players"]:
                             player_conn = player_sockets[player_addr]["conn"]
                             send_json(player_conn, response_format(action="room_update", result="ok", data={"players": player_room["players"]}, msg=f"Player {username} left the room"))
+
                         if player_room["players"] == []:
                             # close room
                             del rooms[gamename][room_id]
 
+                    elif action == "ready_up":
+                        idx = 0
+                        for player, playeraddr, ready in player_room["players"]:
+                            if player == username:
+                                player_room["players"][idx][2] = True if not player_room["players"][idx][2] else False
+                                break
+                            idx += 1
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Ready" if ready else "Cancel ready"))
+                        
+
+                        host_addr = player_room["players"][0][1]
+                        host_sock = player_sockets[host_addr]["conn"]
+                        send_json(host_sock, response_format(action="player_ready", result="ok", data={}, msg=f"player {username}" + (" ready" if ready else " unready")))
     except (ConnectionError, OSError) as e:
         logger.info(f"[!] {addr} disconnected: {e}")
     finally:

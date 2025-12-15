@@ -379,8 +379,9 @@ class PLAYER():
             print("players in room:")
             if act == "list_players_in_room" and result == "ok":
                 players = resp_data.get("players", [])
-                for p in players:
-                    print(f"- {p}" + ("  (Host)" if p == resp_data.get("host", None) else ""))
+                for p, _ ,ready in players:
+                    print(p, "  ", ready)
+                    print(f"- {p}" + ("  (Host)" if p == resp_data.get("host", None) else ("  (ready)" if ready else "  (not ready)")))
             else:
                 print("Failed to retrieve player list.")
             print("----------------------")
@@ -390,7 +391,7 @@ class PLAYER():
             match op:
                 case "1":
                     if self.host:
-                        send_json(self.sock, format(status=self.status, action="start_game", data={"room_id": self.room_id}, token=self.token))
+                        send_json(self.sock, format(status=self.status, action="start_game", data={"gamename": self.game, "room_id": self.room_id}, token=self.token))
                         recv_data = recv_json(self.sock)
                         act, result, resp_data, self.last_msg = breakdown(recv_data)
                         if act == "start_game" and result == "ok":
@@ -400,7 +401,7 @@ class PLAYER():
                         else:
                             print("Failed to start the game. Make sure enough players have joined.")
                     else:
-                        send_json(self.sock, format(status=self.status, action="ready_up", data={"room_id": self.room_id}, token=self.token))
+                        send_json(self.sock, format(status=self.status, action="ready_up", data={"gamename": self.game, "room_id": self.room_id}, token=self.token))
                         recv_data = recv_json(self.sock)
                         act, result, resp_data, self.last_msg = breakdown(recv_data)
                         if act == "ready_up" and result == "ok":
@@ -461,12 +462,16 @@ def nb_input(prompt=">> ", conn=None, default=""):
                     if act == "room_update":
                         print()
                         print(f"{last_msg}")
-                        print("Press enter to reflesh>>")
+                        print("Press enter to reflesh")
                     elif act == "room_closed":
                         print()
                         print(f"{last_msg}")
                         print("Press enter to leave room")
                         return "closed, goback"
+                    
+                    elif act == "player_ready":
+                        print(f"{last_msg}")
+                        print("Press enter to reflesh")
         # check stdin
         r, _, _ = select.select([sys.stdin], [], [], 0.05)
         if r:
