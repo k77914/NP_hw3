@@ -56,6 +56,8 @@ class PLAYER():
                     self.init_page()
                 case STATUS.LOBBY:
                     self.lobby_page()
+                case STATUS.ROOM:
+                    self.room_page()
     
     def init_page(self):
         while True:
@@ -121,7 +123,7 @@ class PLAYER():
                     self.last_msg = "Please Enter a number bewtween 1 to 4!"
 
     def lobby_page(self):
-        while True:
+        while self.status == STATUS.LOBBY:
             os.system('clear')
             self.print_and_reset_last_msg()
             print("----- Lobby page -----")
@@ -133,8 +135,7 @@ class PLAYER():
                 self.last_msg = "Please Enter a number bewtween 1 to 4!"
                 continue
             match op:
-                case "1":
-                    # TODO open game store
+                case "1":# open game store
                     while True:
                         send_json(self.sock, format(status=self.status, action="open_shop", data={}, token=self.token))
                         recv_data = recv_json(self.sock)
@@ -143,6 +144,9 @@ class PLAYER():
                         # list all games on the store, and ask user to choose one.
                         if act == "open_shop" and result == "ok":
                             games = resp_data["games"]
+                            if games == {}:
+                                self.last_msg = "No games available in the store."
+                                break
                             print("=== Game Store ===")
                             # enumerate games
                             for idx, (game_name, game_info) in enumerate(games.items(), start=1):
@@ -210,8 +214,7 @@ class PLAYER():
                                         print("Invalid input, please try again.")
                                         print("----------------------")
 
-                case "2":
-                    # ask user which game to play
+                case "2":# play
                     GAME_FOLDER_PATH = DOWNLOAD_ROOT / self.username
                     available_games = [d for d in GAME_FOLDER_PATH.iterdir() if d.is_dir()]
                     if not available_games:
@@ -288,6 +291,7 @@ class PLAYER():
                                 if act == "create_room" and result == "ok":
                                     room_id = resp_data.get("room_id")
                                     print(f"Room {room_id} created successfully! Waiting for players to join...")
+                                    self.game = selected_game_dir.name
                                     self.status = STATUS.ROOM
                                     self.room_id = room_id
                                     break
@@ -343,15 +347,16 @@ class PLAYER():
                             case _:
                                 print("Invalid input, please try again.")
 
-                    print(f"Launching game: {selected_game_dir.name} ...")
-                    send_json(self.sock, format(status=self.status, action="play_game", data={"gamename" : selected_game_dir.name}, token=self.token))
-                    recv_data = recv_json(self.sock)
-                    act, result, resp_data, self.last_msg = breakdown(recv_data)
-                    if act == "play_game" and result == "ok":
-                        print(f"Game {selected_game_dir.name} started successfully!")
-                    else:
-                        print("Failed to start the game.")
-                        continue
+                    # print(f"Launching game: {selected_game_dir.name} ...")
+                    # send_json(self.sock, format(status=self.status, action="play_game", data={"gamename" : selected_game_dir.name}, token=self.token))
+                    # # 目前應該卡在這裡
+                    # recv_data = recv_json(self.sock)
+                    # act, result, resp_data, self.last_msg = breakdown(recv_data)
+                    # if act == "play_game" and result == "ok":
+                    #     print(f"Game {selected_game_dir.name} started successfully!")
+                    # else:
+                    #     print("Failed to start the game.")
+                    #     continue
 
                 case "3": # logout
                     send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
@@ -363,7 +368,59 @@ class PLAYER():
                         self.status = STATUS.INIT
                         break
 
-    
+    def room_page(self):
+        self.host = True if self.username == self.room_id else False
+        while True:
+            os.system('clear')
+            self.print_and_reset_last_msg()
+            print(f"----- Room: {self.room_id} -----")
+            print(f"game: {self.game.rsplit('_', 1)[0]}")
+            print("players in room:")
+            send_json(self.sock, format(status=self.status, action="list_players_in_room", data={"gamename": self.game, "room_id": self.room_id}, token=self.token))
+            recv_data = recv_json(self.sock)
+            act, result, resp_data, self.last_msg = breakdown(recv_data)
+            if act == "list_players_in_room" and result == "ok":
+                players = resp_data.get("players", [])
+                for p in players:
+                    print(f"- {p}")
+            else:
+                print("Failed to retrieve player list.")
+            print("----------------------")
+            print("1. Start Game" if self.host else "1. Ready Up")
+            print("2. Leave Room")
+            op = nb_input(">> ")
+            match op:
+                case "1":
+                    if self.host:
+                        send_json(self.sock, format(status=self.status, action="start_game", data={"room_id": self.room_id}, token=self.token))
+                        recv_data = recv_json(self.sock)
+                        act, result, resp_data, self.last_msg = breakdown(recv_data)
+                        if act == "start_game" and result == "ok":
+                            print("Game started successfully!")
+                            self.status = STATUS.INGAME
+                            break
+                        else:
+                            print("Failed to start the game. Make sure enough players have joined.")
+                    else:
+                        send_json(self.sock, format(status=self.status, action="ready_up", data={"room_id": self.room_id}, token=self.token))
+                        recv_data = recv_json(self.sock)
+                        act, result, resp_data, self.last_msg = breakdown(recv_data)
+                        if act == "ready_up" and result == "ok":
+                            print("You are now marked as ready.")
+                        else:
+                            print("Failed to mark as ready. Try again.")
+                case "2":
+                    send_json(self.sock, format(status=self.status, action="leave_room", data={"room_id": self.room_id}, token=self.token))
+                    recv_data = recv_json(self.sock)
+                    act, result, resp_data, self.last_msg = breakdown(recv_data)
+                    if act == "leave_room" and result == "ok":
+                        print("Left the room successfully.")
+                        self.status = STATUS.LOBBY
+                        self.room_id = None
+                        break
+                case _:
+                    print("Invalid input, please try again.")
+
     def print_and_reset_last_msg(self):
         if self.last_msg and self.last_msg != "":
             print("======================")
