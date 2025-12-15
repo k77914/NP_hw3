@@ -385,7 +385,7 @@ class PLAYER():
             else:
                 print("Failed to retrieve player list.")
             print("----------------------")
-            print("1. Start Game" if self.host else "1. Ready Up")
+            print("1. Start Game" if self.host else "1. Ready / not ready")
             print("2. Leave Room")
             op = nb_input(">> ", self.sock)
             match op:
