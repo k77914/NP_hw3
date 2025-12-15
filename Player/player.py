@@ -340,8 +340,9 @@ class PLAYER():
                                 else:
                                     print("Failed to retrieve room list. Try again.")
                             case "3": # learn more
-                                print(f"=== About {selected_game_dir.name.rsplit('_', 1)[0]} ===")
-                                readme_path = selected_game_dir / "README.txt"
+                                realgamename = selected_game_dir.name.rsplit('_', 1)[0]
+                                print(f"=== About {realgamename} ===")
+                                readme_path = selected_game_dir / (realgamename+"_readme.txt")
                                 if readme_path.exists():
                                     with open(readme_path, "r") as f:
                                         print(f.read())
@@ -352,18 +353,6 @@ class PLAYER():
                                 break
                             case _:
                                 print("Invalid input, please try again.")
-
-                    # print(f"Launching game: {selected_game_dir.name} ...")
-                    # send_json(self.sock, format(status=self.status, action="play_game", data={"gamename" : selected_game_dir.name}, token=self.token))
-                    # # 目前應該卡在這裡
-                    # recv_data = recv_json(self.sock)
-                    # act, result, resp_data, self.last_msg = breakdown(recv_data)
-                    # if act == "play_game" and result == "ok":
-                    #     print(f"Game {selected_game_dir.name} started successfully!")
-                    # else:
-                    #     print("Failed to start the game.")
-                    #     continue
-
                 case "3": # logout
                     send_json(self.sock, format(status=self.status, action="logout", data={}, token=self.token))
                     recv_data = recv_json(self.sock)
@@ -376,25 +365,28 @@ class PLAYER():
 
     def room_page(self):
         self.host = True if self.username == self.room_id else False
-        while True:
+        while self.status == STATUS.ROOM:
             os.system('clear')
             self.print_and_reset_last_msg()
             print(f"----- Room: {self.room_id} -----")
             print(f"game: {self.game.rsplit('_', 1)[0]}")
-            print("players in room:")
+
             send_json(self.sock, format(status=self.status, action="list_players_in_room", data={"gamename": self.game, "room_id": self.room_id}, token=self.token))
             recv_data = recv_json(self.sock)
             act, result, resp_data, self.last_msg = breakdown(recv_data)
+            if resp_data.get("room_password", "") != "":
+                print(f"password: {resp_data["room_password"]}")
+            print("players in room:")
             if act == "list_players_in_room" and result == "ok":
                 players = resp_data.get("players", [])
                 for p in players:
-                    print(f"- {p}")
+                    print(f"- {p}" + ("  (Host)" if p == resp_data.get("host", None) else ""))
             else:
                 print("Failed to retrieve player list.")
             print("----------------------")
             print("1. Start Game" if self.host else "1. Ready Up")
             print("2. Leave Room")
-            op = nb_input(">> ")
+            op = nb_input(">> ", self.sock)
             match op:
                 case "1":
                     if self.host:
@@ -416,16 +408,24 @@ class PLAYER():
                         else:
                             print("Failed to mark as ready. Try again.")
                 case "2":
-                    send_json(self.sock, format(status=self.status, action="leave_room", data={"room_id": self.room_id}, token=self.token))
+                    send_json(self.sock, format(status=self.status, action="leave_room", data={"gamename": self.game, "room_id": self.room_id}, token=self.token))
                     recv_data = recv_json(self.sock)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
                     if act == "leave_room" and result == "ok":
-                        print("Left the room successfully.")
                         self.status = STATUS.LOBBY
                         self.room_id = None
+                        self.game = None
                         break
                 case _:
-                    print("Invalid input, please try again.")
+                    if op == "":
+                        continue
+                    elif op == "closed, goback":
+                        self.status = STATUS.LOBBY
+                        self.room_id = None
+                        self.game = None
+                        self.last_msg = "Host close the room, go back to lobby."
+                        continue                        
+                    self.last_msg = "Invalid input, please try again."
 
     def print_and_reset_last_msg(self):
         if self.last_msg and self.last_msg != "":
@@ -458,8 +458,15 @@ def nb_input(prompt=">> ", conn=None, default=""):
                 except Exception:
                     resp = None
                 if resp:
-                    # TODO non blocking
-                    pass
+                    if act == "room_update":
+                        print()
+                        print(f"{last_msg}")
+                        print("Press enter to reflesh>>")
+                    elif act == "room_closed":
+                        print()
+                        print(f"{last_msg}")
+                        print("Press enter to leave room")
+                        return "closed, goback"
         # check stdin
         r, _, _ = select.select([sys.stdin], [], [], 0.05)
         if r:

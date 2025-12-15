@@ -375,7 +375,7 @@ class DEVELOPER():
                         os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/template {BASE_DIR_LOCAL}/{self.username}/{gamename}")
                         os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_client.py {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_client.py")
                         os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_server.py {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_server.py")
-
+                        os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_readme.txt {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_readme.txt")
                         # overwrite config
                         with open(f"{BASE_DIR_LOCAL}/{self.username}/{gamename}/config.json", "w", encoding="utf-8") as f:
                             print("config ok")

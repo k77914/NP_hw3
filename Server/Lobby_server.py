@@ -163,13 +163,27 @@ def handle_client(conn: socket.socket, addr):
                             send_json(conn, response_format(action=action, result="error", data={}, msg="New version released!"))
                     elif action == "create_room":
                         # use dict
+
+                        gamename = request_data["gamename"]
+                        gamedir = GAME_STORE_DIR / gamename
+                        if not gamedir.exists():
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Game not found"))
+                            continue
+                        # read config.json
+                        with open(gamedir / "config.json", "r") as f:
+                            config = f.read()
+                            # turn string into dict
+                            import json
+                            config = json.loads(config)
+
                         room_info = {
                             "host": username,
                             "players": [(username, addr)],
+                            "max_players": config["max_players"],
                             "room_password": request_data.get("room_password", ""),
                             "gaming": False
                         }
-                        gamename = request_data["gamename"]
+
                         if gamename not in rooms:
                             rooms[gamename] = {}
                         rooms[gamename][username] = room_info
@@ -205,7 +219,11 @@ def handle_client(conn: socket.socket, addr):
                         if gamename not in rooms or room_id not in rooms[gamename]:
                             send_json(conn, response_format(action=action, result="error", data={}, msg="Room not found"))
                             continue
+                        
                         room_info = rooms[gamename][room_id]
+                        if len(room_info["players"]) >= room_info["max_players"]:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Full room"))
+                            continue                            
                         if room_info["room_password"] != room_password:
                             send_json(conn, response_format(action=action, result="error", data={}, msg="Wrong room password"))
                             continue
@@ -213,6 +231,12 @@ def handle_client(conn: socket.socket, addr):
                         # update player status
                         DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.ROOM})
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Joined room successfully"))
+                        # notify other players about new player
+                        for player, player_addr in room_info["players"]:
+                            if player == username:
+                                continue
+                            player_conn = player_sockets[player_addr]["conn"]
+                            send_json(player_conn, response_format(action="room_update", result="ok", data={"players": room_info["players"]}, msg=f"Player {username} joined the room"))
                     elif action == "logout":
                         username = None
                         token_srv = None
@@ -220,6 +244,58 @@ def handle_client(conn: socket.socket, addr):
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Logout successfully!"))
                     else:
                         send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
+
+                case STATUS.ROOM:
+                    if token != token_srv:
+                        # Not matching token, logout!
+                        username = None
+                        token_srv = None
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
+                        send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
+                    elif action == "list_players_in_room":
+                        # find which room the player is in
+                        player_room = None
+                        for gamename, gamerooms in rooms.items():
+                            for room_id, info in gamerooms.items():
+                                for player, _ in info["players"]:
+                                    if player == username:
+                                        player_room = info
+                                        break
+                        if player_room is None:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="You are not in any room"))
+                            continue
+                        player_list = [player for player, _ in player_room["players"]]
+                        send_json(conn, response_format(action=action, result="ok", data={"players": player_list, "host": player_room["host"], "room_password": player_room["room_password"]}, msg=""))
+                    elif action == "leave_room":
+                        player_room = None
+                        game = request_data.get("gamename", None)
+                        room_id = request_data.get("room_id", None)
+                        game_rooms = rooms.get(game, {})
+                        player_room = game_rooms.get(room_id, None)
+
+                        if player_room is None:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="You are not in any room"))
+                            continue
+                        # remove player from room
+                        player_room["players"] = [(player, addr) for player, addr in player_room["players"] if player != username]
+                        # host leave
+                        if player_room["host"] == username:
+                            for player, player_addr in player_room["players"]:
+                                player_conn = player_sockets[player_addr]["conn"]
+                                send_json(player_conn, response_format(action="room_closed", result="ok", data={}, msg="Host closed the room!"))
+                                DB_request(DB_type.PLAYER, "update", {"username": player, "status": STATUS_DB.LOBBY})
+                            player_room["players"] = []
+
+                        # update player status
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.LOBBY})
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Left room successfully"))
+                        # notify other players about player leaving
+                        for player, player_addr in player_room["players"]:
+                            player_conn = player_sockets[player_addr]["conn"]
+                            send_json(player_conn, response_format(action="room_update", result="ok", data={"players": player_room["players"]}, msg=f"Player {username} left the room"))
+                        if player_room["players"] == []:
+                            # close room
+                            del rooms[gamename][room_id]
 
     except (ConnectionError, OSError) as e:
         logger.info(f"[!] {addr} disconnected: {e}")
