@@ -102,8 +102,6 @@ class PLAYER():
                         print("ok there")
                         self.token = resp_data["token"]
                         self.status = STATUS.LOBBY
-                        # TODO establish own download folder
-
                         break
 
                 # === change mode === #
@@ -215,7 +213,7 @@ class PLAYER():
                                         print("----------------------")
 
                 case "2":# play
-                    GAME_FOLDER_PATH = DOWNLOAD_ROOT / self.username
+                    GAME_FOLDER_PATH = ensure_user_download_dir(self.username)
                     available_games = [d for d in GAME_FOLDER_PATH.iterdir() if d.is_dir()]
                     if not available_games:
                         self.last_msg = "No downloaded games found. Please download a game first."
