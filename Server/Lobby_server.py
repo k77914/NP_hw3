@@ -160,7 +160,7 @@ def handle_client(conn: socket.socket, addr):
                         if config["version"] == user_version:
                             send_json(conn, response_format(action=action, result="ok", data={}, msg="You have the latest version"))
                         else:
-                            send_json(conn, response_format(action=action, result="error"), data={}, msg="New version released!")
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="New version released!"))
                     elif action == "create_room":
                         # use dict
                         room_info = {
@@ -238,7 +238,11 @@ def main():
         srv.listen(128)
         logger.info(f"[*] Player server Listening on {LOBBY_HOST}:{LOBBY_PORT}")
         while True:
-            conn, addr = srv.accept()
+            try:
+                conn, addr = srv.accept()
+            except KeyboardInterrupt:
+                logger.info("[*] Shutting down Lobby server...")
+                break
             player_sockets[addr] = {"conn":conn, "username": None}
             th = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
             th.start()

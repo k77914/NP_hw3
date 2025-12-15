@@ -242,6 +242,7 @@ class PLAYER():
                     send_json(self.sock, format(status=self.status, action="check_version", data={"gamename": selected_game_dir.name, "version": local_version}, token=self.token))
                     recv_data = recv_json(self.sock)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)
+                    backtolobby = False
                     if act != "check_version" or result != "ok":
                         while True:
                             print("Version check failed or game is outdated. Please download the latest version.")
@@ -249,6 +250,7 @@ class PLAYER():
                             print("1. Auto-download latest version")
                             print("2. Back to Lobby")
                             op = nb_input(">> ")
+                            os.system('clear')
                             if op == "1":
                                 send_json(self.sock, format(status=self.status, action="download_game", data={"gamename": selected_game_dir.name}, token=self.token))
                                 recv_data = recv_json(self.sock)
@@ -268,9 +270,13 @@ class PLAYER():
                                 else:
                                     print("Failed to download the latest version.")
                             elif op == "2":
+                                backtolobby = True
+                                self.last_msg = "Not updating, go back to lobby."
                                 break
                             else:
                                 print("Invalid input, please try again.")
+                    if backtolobby:
+                        continue
                     while True:
                         print("--------------------------")
                         print("Game: ", selected_game_dir.name.rsplit("_", 1)[0])
@@ -341,6 +347,7 @@ class PLAYER():
                                 else:
                                     print("No additional information available for this game.")
                             case "4": # back to lobby
+                                self.last_msg = "Cancel playing, back to lobby."
                                 break
                             case _:
                                 print("Invalid input, please try again.")

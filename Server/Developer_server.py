@@ -185,7 +185,11 @@ def main():
         srv.listen(128)
         logger.info(f"[*] Developer server Listening on {DEV_HOST}:{DEV_PORT}")
         while True:
-            conn, addr = srv.accept()
+            try:
+                conn, addr = srv.accept()
+            except KeyboardInterrupt:
+                logger.info("[*] Shutting down Developer server...")
+                break
             th = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
             th.start()
 

@@ -16,6 +16,8 @@ for s in scripts:
     # p = subprocess.Popen(["python", s])
     # print(s)
     processes.append(p)
-
-for p in processes:
-    p.wait()
+try:
+    for p in processes:
+        p.wait()
+except KeyboardInterrupt:
+    pass

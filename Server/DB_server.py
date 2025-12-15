@@ -344,7 +344,11 @@ def main():
         DBsrv.listen(128)
         logger.info(f"[*] DB server Listening on {DB_HOST}:{DB_PORT}")
         while True:
-            conn, addr = DBsrv.accept()
+            try:
+                conn, addr = DBsrv.accept()
+            except KeyboardInterrupt:
+                logger.info("[*] Shutting down DB server...")
+                break
             th = threading.Thread(target=DB_handle_requset, args=(conn, addr), daemon=True)
             th.start()
 main()
