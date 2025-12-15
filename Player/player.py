@@ -31,7 +31,7 @@ class PLAYER():
         self.token = False
         self.filepath = None
         self.room_id = None
-
+        self.game = None
     # connect to Client Server
     def start(self):
         try:
@@ -58,7 +58,7 @@ class PLAYER():
                     self.lobby_page()
                 case STATUS.ROOM:
                     self.room_page()
-    
+
     def init_page(self):
         while True:
             # os.system('clear')
@@ -326,13 +326,14 @@ class PLAYER():
                                     room_password = ""
                                     if selected_room['has_password']:
                                         room_password = nb_input("Enter room password: ")
-                                    send_json(self.sock, format(status=self.status, action="join_room", data={"room_id": room_id, "room_password": room_password}, token=self.token))
+                                    send_json(self.sock, format(status=self.status, action="join_room", data={"gamename": selected_game_dir.name, "room_id": room_id, "room_password": room_password}, token=self.token))
                                     recv_data = recv_json(self.sock)
                                     act, result, resp_data, self.last_msg = breakdown(recv_data)
                                     if act == "join_room" and result == "ok":
                                         print(f"Joined Room {room_id} successfully! Waiting for game to start...")
                                         self.status = STATUS.ROOM
                                         self.room_id = room_id
+                                        self.game = selected_game_dir.name
                                         break
                                     else:
                                         print("Failed to join room. Check password or try another room.")
