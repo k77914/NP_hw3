@@ -21,3 +21,4 @@ Server/GameStore/*
 Developer/game_local/
 !Developer/game_local/template/
 
+Player/download/*
