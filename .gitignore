@@ -18,7 +18,14 @@ venv/
 # Ignore storage json if they are generated dynamically
 Server/Storage_json/*.json
 Server/GameStore/*
-Developer/game_local/
+# 忽略整個 game_local
+Developer/game_local/*
+
+# 先放行資料夾本身（關鍵）
+!Developer/game_local/
 !Developer/game_local/template/
+
+# 再放行 template 裡的所有檔案
+!Developer/game_local/template/**
 
 Player/download/*
