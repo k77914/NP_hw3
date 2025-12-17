@@ -150,6 +150,7 @@ def run_room(room: GameRoom):
 
 def parse_args():
     ap = argparse.ArgumentParser(description="Rock-Paper-Scissors Game Server")
+    ap.add_argument("-m")
     ap.add_argument("--host", default="0.0.0.0", help="Bind host/IP (default: 0.0.0.0)")
     ap.add_argument("--port", type=int, default=5050, help="Bind port (use 0 for auto-assign)")
     ap.add_argument("--backlog", type=int, default=5, help="Listen backlog")

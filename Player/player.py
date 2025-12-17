@@ -396,7 +396,7 @@ class PLAYER():
                         send_json(self.sock, format(status=self.status, action="start_game", data={"gamename": self.game, "room_id": self.room_id}, token=self.token))
                         recv_data = recv_json(self.sock)
                         act, result, resp_data, self.last_msg = breakdown(recv_data)
-                        if act == "start_game" and result == "ok":
+                        if act == "game_start" and result == "ok":
                             print("Game started successfully!")
                             self.status = STATUS.INGAME
                             break
@@ -432,7 +432,8 @@ class PLAYER():
                         self.game = None
                         continue
                     elif op == "game_start":
-                        self.status = STATUS.INGAME                        
+                        self.status = STATUS.INGAME
+                        break                      
                     self.last_msg = "Invalid input, please try again."
 
     def game_page(self):
@@ -440,11 +441,14 @@ class PLAYER():
         act, result, resp_data, self.last_msg = breakdown(recv_data)
         if act == "game_info":
             host, port = resp_data["gameaddr"]
-            p = subprocess.Popen(["python",
-                                "-m",
-                                "NP_hw3.Player.download." + self.username + "." + self.game + "." + self.game.rsplit("_", 1)[0] + "_client",
-                                "--host " + host,
-                                "-- port " + port])
+            try:
+                p = subprocess.Popen(["python",
+                                    "-m",
+                                    "NP_hw3.Player.download." + self.username + "." + self.game + "." + self.game.rsplit("_", 1)[0] + "_client",
+                                    "--host" , host,
+                                    "--port" , str(port)])
+            except:
+                print("worng in there")
             p.wait()
         else:
             self.last_msg = "Can't receive game server's information."

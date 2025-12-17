@@ -42,12 +42,33 @@ def main():
         print("Usage: python3 game_client.py <server_ip> <server_port>")
         sys.exit(1)
 
-    host = sys.argv[1]
-    port = int(sys.argv[2])
+    host = sys.argv[2]
+    port = int(sys.argv[4])
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
-        c.connect((host, port))
-        print(f"[client] Connected to {host}:{port}")
+    # Connection retry logic to handle server startup delay
+    import time
+    max_retries = 10
+    retry_delay = 0.5  # seconds
+    c = None
+    
+    for attempt in range(max_retries):
+        try:
+            c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            c.connect((host, port))
+            print(f"[client] Connected to {host}:{port}")
+            break
+        except ConnectionRefusedError:
+            if attempt < max_retries - 1:
+                print(f"[client] Connection refused, retrying... ({attempt + 1}/{max_retries})")
+                time.sleep(retry_delay)
+            else:
+                print(f"[client] Failed to connect after {max_retries} attempts")
+                sys.exit(1)
+        except Exception as e:
+            print(f"[client] Connection error: {e}")
+            sys.exit(1)
+    
+    with c:
 
         player_id = None
 

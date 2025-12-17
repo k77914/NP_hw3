@@ -5,6 +5,7 @@ from NP_hw3.TCP_tool import send_json, recv_json, set_keepalive
 import os
 import subprocess
 import pathlib
+import time
 
 GAME_STORE_DIR = pathlib.Path(__file__).resolve().parent / "GameStore"
 
@@ -79,8 +80,10 @@ def DB_request(DB_type, action, data):
     return resp
 # ============= #
 def launch_game_server(game_floder_name, gamesrv_addr):
-    p = subprocess.Popen(["python", "-m", "NP_hw3.Server.GameStore." + game_floder_name + "." + game_floder_name.rsplit('_', 1)[0]+ "_server"
-                          "--host " + gamesrv_addr[0], "--port ", gamesrv_addr[1]])
+    p = subprocess.Popen(["python", "-m", "NP_hw3.Server.GameStore." + game_floder_name + "." + game_floder_name.rsplit('_', 1)[0]+ "_server",
+                          "--host",  LOBBY_HOST, "--port", str(gamesrv_addr[1])])
+    # Add delay to ensure game server is ready before clients connect
+    time.sleep(1)
 
 
 def handle_client(conn: socket.socket, addr):
@@ -326,6 +329,7 @@ def handle_client(conn: socket.socket, addr):
                                 break
                         if cnt != player_room["max_players"]:
                             send_json(conn, response_format(action=action, result="error", data={"type": "wait"}, msg="Not everyone is ready!"))
+                            continue
                         # check game version
                         gamedir = GAME_STORE_DIR / game
                         if not gamedir.exists():
@@ -370,6 +374,51 @@ def handle_client(conn: socket.socket, addr):
         logger.info(f"[!] {addr} disconnected: {e}")
     finally:
         conn.close()
+        # remove from the room when unexpected disconnection
+        
+        # Find which room the player is in and remove them
+        if username != None:
+            for gamename, game_rooms in rooms.items():
+                for room_id, room_info in list(game_rooms.items()):
+                    # Check if player is in this room
+                    player_in_room = any(player == username for player, _, _ in room_info["players"])
+                    
+                    if player_in_room:
+                        logger.info(f"[!] Removing player {username} from room {room_id} in game {gamename}")
+                        
+                        # Remove player from room
+                        room_info["players"] = [[player, paddr, ready] for player, paddr, ready in room_info["players"] if player != username]
+                        
+                        # If the disconnected player was the host, close the room
+                        if room_info["host"] == username:
+                            logger.info(f"[!] Host {username} disconnected, closing room {room_id}")
+                            # Notify all remaining players that room is closed
+                            for player, player_addr, _ in room_info["players"]:
+                                if player_addr in player_sockets:
+                                    try:
+                                        player_conn = player_sockets[player_addr]["conn"]
+                                        send_json(player_conn, response_format(action="room_closed", result="ok", data={}, msg="Host disconnected, room closed!"))
+                                        DB_request(DB_type.PLAYER, "update", {"username": player, "status": STATUS_DB.LOBBY})
+                                    except:
+                                        logger.info(f"[!] Failed to notify player {player} at {player_addr}")
+                            # Close the room
+                            del rooms[gamename][room_id]
+                            logger.info(f"[!] Room {room_id} closed")
+                        else:
+                            # Notify host and other players about the disconnection
+                            logger.info(f"[!] Player {username} disconnected from room {room_id}")
+                            for player, player_addr, _ in room_info["players"]:
+                                if player_addr in player_sockets:
+                                    try:
+                                        player_conn = player_sockets[player_addr]["conn"]
+                                        send_json(player_conn, response_format(action="room_update", result="ok", data={"players": room_info["players"]}, msg=f"Player {username} disconnected from the room"))
+                                    except:
+                                        logger.info(f"[!] Failed to notify player {player} at {player_addr}")
+                            
+                            # If room is empty, close it
+                            if room_info["players"] == []:
+                                del rooms[gamename][room_id]
+
         player_sockets.pop(addr)
         logger.info(f"[*] closed {addr}")
         if username != None:
