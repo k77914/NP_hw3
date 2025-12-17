@@ -58,7 +58,7 @@ class DEVELOPER():
     
     def init_page(self):
         while self.status == STATUS.INIT:
-            # os.system('clear')
+            os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Developer mode) -----")
             print("Welcome to Online Game Shop System")
@@ -128,6 +128,7 @@ class DEVELOPER():
         while self.status == STATUS.LOBBY:
             os.system('clear')
             self.print_and_reset_last_msg()
+            print("developer: ", self.username)
             print("----- Lobby page (Developer)-----")
             print("1. Manage your game on game store")
             print("2. Upload your game to game store")
@@ -156,12 +157,12 @@ class DEVELOPER():
                                 print(f"{i}. {ori_gamename(game)}")
                                 game_on_store_list.append(game)
                             print("=========================")
-
-                            choice = nb_input("Enter the number of the game to view details (or 'q' to abort): ")
+                            print("0 for go back")
+                            print("Enter one number of game or 0: ")
+                            choice = nb_input(">> ")
                             os.system("clear")
-                            if choice.lower() == 'q':
-                                print("Aborted.")
-                                time.sleep(0.5)
+                            if choice.lower() == '0':
+                                self.last_msg = "go back"
                                 break
                             if choice.isdigit() and 1 <= int(choice) <= len(game_on_store_list):
                                 selected_game = game_on_store_list[int(choice) - 1]
@@ -174,7 +175,9 @@ class DEVELOPER():
                                     print("2. Update Game on Store")
                                     print("3. Delete Game from Store")
                                     print("4. Back to Previous Menu")
-                                    sub_choice = nb_input("Enter >> ")
+                                    print("-------------------------")
+                                    print("Select one number.")
+                                    sub_choice = nb_input(">> ")
                                     match sub_choice:
                                         case "1":
                                             # View Details
@@ -185,18 +188,19 @@ class DEVELOPER():
                                             print("-------------------------------")
                                         case "2":
                                             # Update Game on Store
-                                            # TODO: 
                                             # 1. check the config is valid first.
                                             # 2. ask developer to fill in the new config info. (version must be higher than before)
                                             # 3. send update request to server.
-                                            ori_config = game_on_store_dict[selected_game].get("config", {})
+                                            ori_config = game_on_store_dict[selected_game]
                                             print("Current config:")
                                             for key, value in ori_config.items():
                                                 print(f"{key}: {value}")
+                                            print("---------------------------------")
+                                            print(" =========== updating =========== ")
                                             print("Please fill in the new config info:")
                                             # version
                                             while True:
-                                                version = nb_input("Enter new game version: ")
+                                                version = nb_input("new version[x.y.z]: ")
                                                 if is_valid_version(version):
                                                     # check version higher than before
                                                     ori_version = ori_config.get("version", "0.0.0")
@@ -301,12 +305,13 @@ class DEVELOPER():
                     for i, game_dir in enumerate(games, start=1):
                         print(f"{i}. {game_dir.name}")
                     try:
-                        print("Enter the number of the game you want to upload (or 'q' to abort):")
+
+                        print("Enter the number of the game you want to upload:")
+                        print("Enter 0 to go back!")
                         while True:
                             choice = nb_input(">> ")
-                            if choice.lower() == 'q':
-                                print("Upload aborted.")
-                                time.sleep(0.5)
+                            if choice.lower() == '0':
+                                self.last_msg = "No upload, back!"
                                 break
                             if choice.isdigit() and 1 <= int(choice) <= len(games):
                                 selected_game_dir = games[int(choice) - 1]
@@ -363,8 +368,8 @@ class DEVELOPER():
                     print("Please enter the following info to create your game template:")
                     print("This is a CUI version game template.")
                     print("Note: You need to modify the game logic for your game later!")
-                    print("-----------------------------------")
                     print("Use cntrl+c to abort anytime.")
+                    print("-----------------------------------")
                     try:
                         gamename = nb_input("Enter your game name: ")
                         # cp whole template folder to working directory
@@ -394,7 +399,6 @@ class DEVELOPER():
                         self.last_msg = f"File operation error: {e}"
                     except KeyboardInterrupt:
                         print("\nAborted!")
-                        time.sleep(0.5)
                 # === logout === #
                 case "4":
                     send_json(self.sock, format(status=self.status, action="logout", data={"username": self.username}, token=self.token))
@@ -434,9 +438,12 @@ def ori_gamename(gameid: str) -> str:
     return gameid.rsplit("_", 1)[0]
 
 def fill_config(gamename: str, username: str) -> dict:
+    os.system("clear")
+    print("----------------------------------")
     print("Please fill in the game config info:")
     print("press enter to use default value where applicable.")
     print("Use cntrl+c to abort anytime.")
+    print("----------------------------------")
     # max_players
     while True:
         max_players = nb_input("Enter max players [default: 2]: ", default="2")

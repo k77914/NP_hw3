@@ -130,6 +130,7 @@ def handle_client(conn: socket.socket, addr):
                         folder_name = game_data["gamename"] + "_" + username
                         os.makedirs(create_path / folder_name, exist_ok=True)
                         # store config file
+                        # game_data['config']["comments"] = []
                         with open(create_path / folder_name / "config.json", 'w') as f:
                             import json
                             json.dump(game_data['config'], f, indent=4)

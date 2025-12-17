@@ -64,7 +64,7 @@ class PLAYER():
 
     def init_page(self):
         while True:
-            # os.system('clear')
+            os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Player mode) -----")
             print("Welcome to Online Game Shop System")
@@ -127,17 +127,20 @@ class PLAYER():
         while self.status == STATUS.LOBBY:
             os.system('clear')
             self.print_and_reset_last_msg()
+            print("user: ", self.username)
             print("----- Lobby page -----")
             print("1. Open Game Store")
             print("2. Play Game")
             print("3. Logout")
             op = nb_input(prompt=">> ")
+            os.system('clear')
             if op not in ["1", "2", "3", "4"]:
                 self.last_msg = "Please Enter a number bewtween 1 to 4!"
                 continue
             match op:
                 case "1":# open game store
-                    while True:
+                    in_shop = True
+                    while in_shop:
                         send_json(self.sock, format(status=self.status, action="open_shop", data={}, token=self.token))
                         recv_data = recv_json(self.sock)
                         act, result, resp_data, self.last_msg = breakdown(recv_data)
@@ -152,7 +155,9 @@ class PLAYER():
                             # enumerate games
                             for idx, (game_name, game_info) in enumerate(games.items(), start=1):
                                 print(f"{idx}. {game_info["gamename"]} - Author: {game_info['author']} - version: {game_info["version"]}")
-                            op = nb_input("Choose a game number to take the action, or '0' to go back:")
+                            print("------------------------------------")
+                            print("Select one number, 0 for going back.")
+                            op = nb_input(">> ")
                             if op == "0":
                                 break
 
@@ -201,14 +206,16 @@ class PLAYER():
                                             for filename, filecontent in resp_data['files'].items():
                                                 file_path = target_dir / filename
                                                 with open(file_path, "wb") as f:
-                                                    f.write(filecontent.encode('latin1'))
+                                                    f.write(filecontent.encode('utf-8'))
                                             
                                             print(f"Game {game_info['gamename']} downloaded successfully to {target_dir}!")
+                                            in_shop = False
                                             break
                                         else:
                                             print("Failed to download the game.")
                                     case "3": # go back game list
                                         os.system('clear')
+
                                         break
                                     case _:
                                         os.system("clear")
@@ -225,7 +232,9 @@ class PLAYER():
                     for idx, game_dir in enumerate(available_games, start=1):
                         game, author = game_dir.name.rsplit("_", 1)
                         print(f"{idx}. {game}, by {author}")
-                    op = nb_input("Choose a game number to play, or '0' to go back:")
+                    print("-------------------------------------")
+                    print("Choose a game number to play, or '0' to go back")
+                    op = nb_input(">> ")
                     if op == "0":
                         continue
                     if not op.isdigit() or int(op) < 1 or int(op) > len(available_games):
@@ -291,13 +300,15 @@ class PLAYER():
                         os.system('clear')
                         match op:
                             case "1": # create room
-                                room_password = nb_input("Set room password (or leave empty for no password): ", default="")
+                                print("Set room password (or leave empty for no password)")
+                                room_password = nb_input(">> ", default="")
+                                os.system('clear')
                                 send_json(self.sock, format(status=self.status, action="create_room", data={"gamename": selected_game_dir.name, "room_password": room_password}, token=self.token))
                                 recv_data = recv_json(self.sock)
                                 act, result, resp_data, self.last_msg = breakdown(recv_data)
                                 if act == "create_room" and result == "ok":
                                     room_id = resp_data.get("room_id")
-                                    print(f"Room {room_id} created successfully! Waiting for players to join...")
+                                    self.last_msg = f"Room {room_id} created successfully! Waiting for players to join..."
                                     self.game = selected_game_dir.name
                                     self.status = STATUS.ROOM
                                     self.room_id = room_id
@@ -371,6 +382,7 @@ class PLAYER():
         while self.status == STATUS.ROOM:
             # os.system('clear')
             self.print_and_reset_last_msg()
+            print("user: ", self.username)
             print(f"----- Room: {self.room_id} -----")
             print(f"game: {self.game.rsplit('_', 1)[0]}")
 

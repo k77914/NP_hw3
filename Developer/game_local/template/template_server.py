@@ -126,25 +126,6 @@ def run_room(room: GameRoom):
             send_json(p1, {"type": "result", "round": round_no, "you": m1, "opponent": m2, "outcome": r1})
             send_json(p2, {"type": "result", "round": round_no, "you": m2, "opponent": m1, "outcome": r2})
 
-            send_json(p1, {"type": "ask_play_again", "msg": "Play again? (yes/no)"})
-            send_json(p2, {"type": "ask_play_again", "msg": "Play again? (yes/no)"})
-
-            while True:
-                _m1, _m2, a1, a2 = room.get_state()
-                if a1 is not None and a2 is not None:
-                    break
-                threading.Event().wait(0.05)
-
-            _, _, a1, a2 = room.get_state()
-            if a1 and a2:
-                room.reset_round()
-                round_no += 1
-                send_json(p1, {"type": "info", "msg": "New round!"})
-                send_json(p2, {"type": "info", "msg": "New round!"})
-            else:
-                send_json(p1, {"type": "end", "msg": "Game over."})
-                send_json(p2, {"type": "end", "msg": "Game over."})
-                break
     finally:
         room.close()
 

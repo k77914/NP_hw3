@@ -100,12 +100,7 @@ def main():
                 opp = msg.get("opponent")
                 out = msg.get("outcome")
                 print(f"\n[Round {rnd}] You: {you} | Opponent: {opp} => {out.upper()}\n")
-
-            elif mtype == "ask_play_again":
-                again = prompt_yesno(msg.get("msg", "Play again? (yes/no) ") + " ")
-                send_json(c, {"type": "play_again", "again": again})
-                if not again:
-                    send_json(c, {"type": "quit"})
+                break
 
             elif mtype == "info":
                 print(f"[info] {msg.get('msg','')}")
