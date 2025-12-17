@@ -154,9 +154,10 @@ def handle_client(conn: socket.socket, addr):
                         # read all files instead of server
                         files_data = {}
                         for file in gamedir.iterdir():
-                            if file.name == "config.json" or "server.py" or "__pycache__" in file.name:
+                            if file.name == "config.json" in file.name or "server.py"in file.name  or "__pycache__" in file.name:
                                 continue
                             with open(file, "rb") as f:
+                                logger.info("printintintitnitn")
                                 files_data[file.name] = f.read().decode('utf-8')
                         send_json(conn, response_format(action=action, result="ok", data={"config": config, "files": files_data}, msg="Download success"))
                     elif action == "check_version":
@@ -209,6 +210,7 @@ def handle_client(conn: socket.socket, addr):
                         DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.ROOM})
                         send_json(conn, response_format(action=action, result="ok", data={"room_id": username}, msg="Room created successfully"))
                         logger.info(f"Current rooms dict: {rooms}")
+
                     elif action == "list_rooms":
                         gamename = request_data["gamename"]
                         if gamename not in rooms:
