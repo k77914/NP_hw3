@@ -1,5 +1,5 @@
 import uuid ,socket, threading, queue, copy, os, json, tempfile, time  #  For random user IDs and room IDs
-from loguru import logger
+#from loguru import # logger
 from NP_hw3.config import DB_HOST, DB_PORT, LOBBY_HOST, DEV_HOST # addr
 from NP_hw3.config import PLAYER_JSON, DEVELOPER_JSON, ROOM_JSON, GAME_STORE_JSON
 from NP_hw3.TCP_tool import set_keepalive, send_json, recv_json
@@ -223,15 +223,15 @@ class GSDB(DB):
     def query(self, data):
         with self._lock:
             gamelist = self._state  # 直接使用 _state 而非 read()
-            logger.info(f"GSDB query with data: {data}")
+            # logger.info(f"GSDB query with data: {data}")
             if data["gamename"] is None:
                 # return all games from a developer
                 result = {}
-                logger.info(f"{gamelist}")
+                # logger.info(f"{gamelist}")
                 for gname, gconfig in gamelist.items():
                     if gconfig["author"] == data["username"]:
                         result[gname] = copy.deepcopy(gconfig)
-                logger.info(f"GSDB query result: {result}")
+                # logger.info(f"GSDB query result: {result}")
                 return result
             
             if data["gamename"]+"_"+data["username"] in gamelist:
@@ -300,7 +300,7 @@ class GSDB(DB):
 def DB_handle_requset(conn: socket.socket, addr):
     set_keepalive(conn)
     if addr[0] != LOBBY_HOST and addr[0] != DEV_HOST:
-        logger.info("Invalid Accessing from other host : ", addr)
+        # logger.info("Invalid Accessing from other host : ", addr)
         send_json(conn, {})
         conn.close()
         return
@@ -309,7 +309,7 @@ def DB_handle_requset(conn: socket.socket, addr):
         req = recv_json(conn)
         Database = DB_DICT[req["type"]]
         resp = {}
-        logger.info(f"Request from {addr}: {req}")
+        # logger.info(f"Request from {addr}: {req}")
         match req["action"]:
             case "create":
                 Database.create(req["data"])
@@ -322,16 +322,17 @@ def DB_handle_requset(conn: socket.socket, addr):
             case "query":
                 resp = Database.query(req["data"])
             case _:
-                logger.info(f"DB_handle_request: unknown action {req['action']}")
+                # logger.info(f"DB_handle_request: unknown action {req['action']}")
                 resp = {} #  design a ERROR response
         send_json(conn, resp)
     except (ConnectionError, OSError) as e:
-        logger.info(f"[!] {addr} disconnected: {e}")
+        print(f"[!] {addr} disconnected: {e}")
+        # logger.info(f"[!] {addr} disconnected: {e}")
     finally:
         try: conn.shutdown(socket.SHUT_RDWR)
         except: pass
         conn.close()
-        logger.info(f"[*] closed {addr}")
+        # logger.info(f"[*] closed {addr}")
 
 
     conn.close()
@@ -351,12 +352,13 @@ def main():
         DBsrv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         DBsrv.bind((DB_HOST, DB_PORT))
         DBsrv.listen(128)
-        logger.info(f"[*] DB server Listening on {DB_HOST}:{DB_PORT}")
+        print(f"[*] DB server Listening on {DB_HOST}:{DB_PORT}")
+        # logger.info(f"[*] DB server Listening on {DB_HOST}:{DB_PORT}")
         while True:
             try:
                 conn, addr = DBsrv.accept()
             except KeyboardInterrupt:
-                logger.info("[*] Shutting down DB server...")
+                # logger.info("[*] Shutting down DB server...")
                 break
             th = threading.Thread(target=DB_handle_requset, args=(conn, addr), daemon=True)
             th.start()

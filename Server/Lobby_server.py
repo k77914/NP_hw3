@@ -1,5 +1,5 @@
 import socket, threading, uuid
-from loguru import logger
+# from loguru import # logger
 from NP_hw3.config import LOBBY_HOST, LOBBY_PORT, DB_HOST, DB_PORT
 from NP_hw3.TCP_tool import send_json, recv_json, set_keepalive
 import os
@@ -72,7 +72,8 @@ def DB_request(DB_type, action, data):
             case 'query':
                 send_json(db, {"type": DB_type, "action": "query", "data": data})
             case _:
-                logger.info(f"{DB_type} DB_request: unknown action {action}")
+                print("")
+                # logger.info(f"{DB_type} DB_request: unknown action {action}")
         
         #  Receive the response
         resp = recv_json(db)
@@ -88,7 +89,7 @@ def launch_game_server(game_floder_name, gamesrv_addr):
 
 def handle_client(conn: socket.socket, addr):
     set_keepalive(conn)
-    logger.info(f"[*] connected from {addr}")
+    # logger.info(f"[*] connected from {addr}")
     # === some variables === #
     username = None
     token_srv = None
@@ -157,7 +158,7 @@ def handle_client(conn: socket.socket, addr):
                             if file.name == "config.json" or "server.py"in file.name  or "__pycache__" in file.name:
                                 continue
                             with open(file, "rb") as f:
-                                logger.info("printintintitnitn")
+                                # logger.info("printintintitnitn")
                                 files_data[file.name] = f.read().decode('utf-8')
                         send_json(conn, response_format(action=action, result="ok", data={"config": config, "files": files_data}, msg="Download success"))
                     elif action == "check_version":
@@ -209,7 +210,7 @@ def handle_client(conn: socket.socket, addr):
                         # update player status
                         DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.ROOM})
                         send_json(conn, response_format(action=action, result="ok", data={"room_id": username}, msg="Room created successfully"))
-                        logger.info(f"Current rooms dict: {rooms}")
+                        # logger.info(f"Current rooms dict: {rooms}")
 
                     elif action == "list_rooms":
                         gamename = request_data["gamename"]
@@ -388,7 +389,8 @@ def handle_client(conn: socket.socket, addr):
                             DB_request(DB_type.PLAYER, action="update", data={"username": player, "play": gamename})
 
     except (ConnectionError, OSError) as e:
-        logger.info(f"[!] {addr} disconnected: {e}")
+        print(f"[!] {addr} disconnected: {e}")
+        # logger.info(f"[!] {addr} disconnected: {e}")
     finally:
         conn.close()
         # remove from the room when unexpected disconnection
@@ -401,14 +403,14 @@ def handle_client(conn: socket.socket, addr):
                     player_in_room = any(player == username for player, _, _ in room_info["players"])
                     
                     if player_in_room:
-                        logger.info(f"[!] Removing player {username} from room {room_id} in game {gamename}")
+                        # logger.info(f"[!] Removing player {username} from room {room_id} in game {gamename}")
                         
                         # Remove player from room
                         room_info["players"] = [[player, paddr, ready] for player, paddr, ready in room_info["players"] if player != username]
                         
                         # If the disconnected player was the host, close the room
                         if room_info["host"] == username:
-                            logger.info(f"[!] Host {username} disconnected, closing room {room_id}")
+                            # logger.info(f"[!] Host {username} disconnected, closing room {room_id}")
                             # Notify all remaining players that room is closed
                             for player, player_addr, _ in room_info["players"]:
                                 if player_addr in player_sockets:
@@ -417,27 +419,29 @@ def handle_client(conn: socket.socket, addr):
                                         send_json(player_conn, response_format(action="room_closed", result="ok", data={}, msg="Host disconnected, room closed!"))
                                         DB_request(DB_type.PLAYER, "update", {"username": player, "status": STATUS_DB.LOBBY})
                                     except:
-                                        logger.info(f"[!] Failed to notify player {player} at {player_addr}")
+                                        print(f"[!] Failed to notify player {player} at {player_addr}")
+                                        # logger.info(f"[!] Failed to notify player {player} at {player_addr}")
                             # Close the room
                             del rooms[gamename][room_id]
-                            logger.info(f"[!] Room {room_id} closed")
+                            # logger.info(f"[!] Room {room_id} closed")
                         else:
                             # Notify host and other players about the disconnection
-                            logger.info(f"[!] Player {username} disconnected from room {room_id}")
+                            # logger.info(f"[!] Player {username} disconnected from room {room_id}")
                             for player, player_addr, _ in room_info["players"]:
                                 if player_addr in player_sockets:
                                     try:
                                         player_conn = player_sockets[player_addr]["conn"]
                                         send_json(player_conn, response_format(action="room_update", result="ok", data={"players": room_info["players"]}, msg=f"Player {username} disconnected from the room"))
                                     except:
-                                        logger.info(f"[!] Failed to notify player {player} at {player_addr}")
+                                        print(f"[!] Failed to notify player {player} at {player_addr}")
+                                        # logger.info(f"[!] Failed to notify player {player} at {player_addr}")
                             
                             # If room is empty, close it
                             if room_info["players"] == []:
                                 del rooms[gamename][room_id]
 
         player_sockets.pop(addr)
-        logger.info(f"[*] closed {addr}")
+        # logger.info(f"[*] closed {addr}")
         if username != None:
             # set to logout
             DB_request(DB_type.PLAYER, "update", {"username": username, "status":STATUS_DB.INIT, "token":None})
@@ -447,12 +451,13 @@ def main():
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind((LOBBY_HOST, LOBBY_PORT))
         srv.listen(128)
-        logger.info(f"[*] Player server Listening on {LOBBY_HOST}:{LOBBY_PORT}")
+        print(f"[*] Player server Listening on {LOBBY_HOST}:{LOBBY_PORT}")
+        # logger.info(f"[*] Player server Listening on {LOBBY_HOST}:{LOBBY_PORT}")
         while True:
             try:
                 conn, addr = srv.accept()
             except KeyboardInterrupt:
-                logger.info("[*] Shutting down Lobby server...")
+                # logger.info("[*] Shutting down Lobby server...")
                 break
             player_sockets[addr] = {"conn":conn, "username": None}
             th = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)

@@ -1,5 +1,5 @@
 import socket, threading, uuid
-from loguru import logger
+# from loguru import # logger
 from NP_hw3.config import DEV_HOST, DEV_PORT, DB_HOST, DB_PORT, GAME_STORE_PATH
 from NP_hw3.TCP_tool import send_json, recv_json, set_keepalive
 import os
@@ -40,7 +40,8 @@ def DB_request(DB_type, action, data):
             case 'query':
                 send_json(db, {"type": DB_type, "action": "query", "data": data})
             case _:
-                logger.info(f"{DB_type} DB_request: unknown action {action}")
+                print("")
+                # logger.info(f"{DB_type} DB_request: unknown action {action}")
         
         #  Receive the response
         resp = recv_json(db)
@@ -50,7 +51,7 @@ def DB_request(DB_type, action, data):
 
 def handle_client(conn: socket.socket, addr):
     set_keepalive(conn)
-    logger.info(f"[*] connected from {addr}")
+    # logger.info(f"[*] connected from {addr}")
     # === some variables === #
     username = None
     token_srv = None
@@ -98,7 +99,7 @@ def handle_client(conn: socket.socket, addr):
                         # receive game data and update to game store db
                         game_data = request_data
                         # update config data to DB
-                        logger.info(f"Updating game '{game_data}' to GAME_STORE DB")
+                        # logger.info(f"Updating game '{game_data}' to GAME_STORE DB")
                         DB_request(DB_type.GAME_STORE, "update", game_data)
                         # update files on server side
                         # create path to store game files
@@ -141,14 +142,14 @@ def handle_client(conn: socket.socket, addr):
                         
                         # only store config data to DB
                         del game_data['files']
-                        logger.info(f"Storing game '{game_data}' to GAME_STORE DB")
+                        # logger.info(f"Storing game '{game_data}' to GAME_STORE DB")
                         DB_request(DB_type.GAME_STORE, "create", game_data)
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Upload game successfully!"))
 
                     elif action == "delete_game":
                         game_data = request_data
                         # delete from DB
-                        logger.info(f"Deleting game '{game_data}' from GAME_STORE DB")
+                        # logger.info(f"Deleting game '{game_data}' from GAME_STORE DB")
                         create_path = pathlib.Path(GAME_STORE_PATH)
                         folder_name = game_data["gamename"] + "_" + username
                         game_data = {"gamename": folder_name}                        
@@ -166,15 +167,16 @@ def handle_client(conn: socket.socket, addr):
                         username = None
                         token_srv = None
                     else:
-                        logger.info(f"Unknown action {action} from {addr}")
+                        # logger.info(f"Unknown action {action} from {addr}")
                         send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
 
 
     except (ConnectionError, OSError) as e:
-        logger.info(f"[!] {addr} disconnected: {e}")
+        print(f"[!] {addr} disconnected: {e}")
+        # logger.info(f"[!] {addr} disconnected: {e}")
     finally:
         conn.close()
-        logger.info(f"[*] closed {addr}")
+        # logger.info(f"[*] closed {addr}")
         if username != None:
             # set to logout
             DB_request(DB_type.DEVELOPER, "update", {"username": username, "status":STATUS_DB.INIT, "token":None})
@@ -184,12 +186,13 @@ def main():
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind((DEV_HOST, DEV_PORT))
         srv.listen(128)
-        logger.info(f"[*] Developer server Listening on {DEV_HOST}:{DEV_PORT}")
+        print(f"[*] Developer server Listening on {DEV_HOST}:{DEV_PORT}")
+        # logger.info(f"[*] Developer server Listening on {DEV_HOST}:{DEV_PORT}")
         while True:
             try:
                 conn, addr = srv.accept()
             except KeyboardInterrupt:
-                logger.info("[*] Shutting down Developer server...")
+                # logger.info("[*] Shutting down Developer server...")
                 break
             th = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
             th.start()
