@@ -1,0 +1,29 @@
+{
+    "520_Tsai": {
+        "gamename": "520",
+        "author": "Tsai",
+        "max_players": 2,
+        "version": "1.0.0",
+        "game_type": "CUI",
+        "last_update": "2025-12-18 04:46:47",
+        "comments": []
+    },
+    "snake_Tsai": {
+        "gamename": "snake",
+        "author": "Tsai",
+        "max_players": 2,
+        "version": "1.0.0",
+        "game_type": "GUI",
+        "last_update": "2025-12-18 04:47:09",
+        "comments": []
+    },
+    "nAnB_Tsai": {
+        "gamename": "nAnB",
+        "author": "Tsai",
+        "max_players": 3,
+        "version": "1.0.0",
+        "game_type": "CUI",
+        "last_update": "2025-12-18 04:47:28",
+        "comments": []
+    }
+}

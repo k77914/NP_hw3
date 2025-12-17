@@ -1,0 +1,30 @@
+{
+    "a": {
+        "password": "a",
+        "status": "offline",
+        "token": null,
+        "have_play": [
+            "520_Tsai",
+            "snake_Tsai",
+            "nAnB_Tsai"
+        ]
+    },
+    "b": {
+        "password": "b",
+        "status": "offline",
+        "token": null,
+        "have_play": [
+            "520_Tsai",
+            "snake_Tsai",
+            "nAnB_Tsai"
+        ]
+    },
+    "c": {
+        "password": "c",
+        "status": "offline",
+        "token": null,
+        "have_play": [
+            "nAnB_Tsai"
+        ]
+    }
+}
