@@ -380,7 +380,6 @@ class PLAYER():
             if act == "list_players_in_room" and result == "ok":
                 players = resp_data.get("players", [])
                 for p, _ ,ready in players:
-                    print(p, "  ", ready)
                     print(f"- {p}" + ("  (Host)" if p == resp_data.get("host", None) else ("  (ready)" if ready else "  (not ready)")))
             else:
                 print("Failed to retrieve player list.")
@@ -389,7 +388,7 @@ class PLAYER():
             print("2. Leave Room")
             op = nb_input(">> ", self.sock)
             match op:
-                case "1":
+                case "1": # start game
                     if self.host:
                         send_json(self.sock, format(status=self.status, action="start_game", data={"gamename": self.game, "room_id": self.room_id}, token=self.token))
                         recv_data = recv_json(self.sock)
@@ -398,6 +397,10 @@ class PLAYER():
                             print("Game started successfully!")
                             self.status = STATUS.INGAME
                             break
+                        elif act == "room_closed":
+                            self.status = STATUS.LOBBY
+                            break
+
                         else:
                             print("Failed to start the game. Make sure enough players have joined.")
                     else:
@@ -424,7 +427,6 @@ class PLAYER():
                         self.status = STATUS.LOBBY
                         self.room_id = None
                         self.game = None
-                        self.last_msg = "Host close the room, go back to lobby."
                         continue                        
                     self.last_msg = "Invalid input, please try again."
 

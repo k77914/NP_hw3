@@ -1,112 +1,190 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import socket
-import json
-import sys
 import threading
-from ....config import LOBBY_HOST, LOBBY_PORT_GAMESERVER
-from ....TCP_tool import recv_json, send_json, set_keepalive
+import json
+import argparse
+from typing import Dict, Any, Optional, Tuple
 
-PLAYER_NUM = 2
+MOVES = {"rock", "paper", "scissors"}
+WIN_TABLE = {
+    ("rock", "scissors"): 1,
+    ("scissors", "paper"): 1,
+    ("paper", "rock"): 1,
+}
 
-class GAME():
-    def __init__(self, player_conns: list):
-        self.player_conns = player_conns  # list of (conn, addr)
-        self.scores = [0 for _ in range(len(player_conns))]
-        self.current_turn = 0  # index of current player's turn
+def send_json(conn: socket.socket, obj: Dict[str, Any]) -> None:
+    data = (json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8")
+    conn.sendall(data)
 
-    def start(self):
-        # Notify players that the game is starting
-        for idx, (conn, addr) in enumerate(self.player_conns):
-            send_json(conn, {"action": "start_game", "player_index": idx})
-        
-        # Main game loop
-        while not self.is_game_over():
-            current_conn, _ = self.player_conns[self.current_turn]
-            send_json(current_conn, {"action": "your_turn"})
-            
-            # Wait for player's move
-            move = recv_json(current_conn)
-            self.process_move(self.current_turn, move)
-            
-            # Notify all players about the move
-            for conn, _ in self.player_conns:
-                send_json(conn, {"action": "player_move", "player_index": self.current_turn, "move": move})
-            
-            # Switch to next player's turn
-            self.current_turn = (self.current_turn + 1) % len(self.player_conns)
-        
-        # Notify players that the game is over
-        for conn, _ in self.player_conns:
-            send_json(conn, {"action": "game_over", "scores": self.scores})
-
-    def process_move(self, player_index, move):
-        # Process the player's move and update scores accordingly
-        self.scores[player_index] += move.get("points", 0)
-
-    def is_game_over(self):
-        # Define game over condition
-        return max(self.scores) >= 10  # Example condition: first to reach 10 points
-    
-
-def check_connection(srv: socket.socket, results: list):
-    """Listen on `srv`, accept one connection and append (conn, addr) to results."""
-    try:
-        srv.listen(1)
-        conn, addr = srv.accept()
-        # set TCP keepalive if helper available
-        try:
-            set_keepalive(conn)
-        except Exception:
-            pass
-        results.append((conn, addr))
-    except Exception as e:
-        # On error, append the exception so caller can notice
-        results.append(e)
-    
-# Two player, CUI template
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python game_server.py <room_id>")
-        sys.exit(1)
-        
-    room_id = sys.argv[1]
-    # host and port are needed to be sent to the client server.
-    player_socket_list = []   # list of (host, port) to advertise to lobby
-    player_connections = []   # list to collect accepted (conn, addr) tuples
-    pthread = []
-    for _ in range(PLAYER_NUM):
-        psock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # bind to any address, let OS pick port
-        psock.bind(("", 0))
-        addr = psock.getsockname()
-
-        player_socket_list.append(addr)
-        th = threading.Thread(target=check_connection, args=(psock, player_connections))
-        th.daemon = True
-        th.start()
-        pthread.append(th)
-
-    server_information = {"roomid": room_id, "sockets": player_socket_list}
-
-    lobby_sock = None
-    try:
-        # create socket connecting to lobbyserver.
-        lobby_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        lobby_sock.connect((LOBBY_HOST, LOBBY_PORT_GAMESERVER))
-        send_json(lobby_sock, {"game_server": server_information})       
-        # Waiting for all player connect to game.
-        for p in pthread:
-            p.join()
-        
-        # start the game
-        game = GAME(player_connections)
-        game.start()
-
-        
-    except Exception as e:
-        print(f"{e}")
-    finally:
-        if lobby_sock is not None:
+def recv_json(conn: socket.socket) -> Optional[Dict[str, Any]]:
+    buf = b""
+    while True:
+        chunk = conn.recv(4096)
+        if not chunk:
+            return None
+        buf += chunk
+        if b"\n" in buf:
+            line, _rest = buf.split(b"\n", 1)
             try:
-                lobby_sock.close()
+                return json.loads(line.decode("utf-8"))
+            except json.JSONDecodeError:
+                return None
+
+def judge(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    return 1 if (a, b) in WIN_TABLE else -1
+
+class GameRoom:
+    def __init__(self, p1: socket.socket, p2: socket.socket):
+        self.p1 = p1
+        self.p2 = p2
+        self.lock = threading.Lock()
+        self.moves: Dict[int, Optional[str]] = {1: None, 2: None}
+        self.play_again: Dict[int, Optional[bool]] = {1: None, 2: None}
+
+    def close(self):
+        for c in (self.p1, self.p2):
+            try:
+                c.shutdown(socket.SHUT_RDWR)
             except Exception:
                 pass
+            try:
+                c.close()
+            except Exception:
+                pass
+
+    def reset_round(self):
+        with self.lock:
+            self.moves = {1: None, 2: None}
+            self.play_again = {1: None, 2: None}
+
+    def set_move(self, player_id: int, move: str) -> None:
+        with self.lock:
+            self.moves[player_id] = move
+
+    def set_play_again(self, player_id: int, again: bool) -> None:
+        with self.lock:
+            self.play_again[player_id] = again
+
+    def get_state(self) -> Tuple[Optional[str], Optional[str], Optional[bool], Optional[bool]]:
+        with self.lock:
+            return self.moves[1], self.moves[2], self.play_again[1], self.play_again[2]
+
+def player_thread(room: GameRoom, conn: socket.socket, player_id: int):
+    try:
+        send_json(conn, {"type": "welcome", "player_id": player_id, "msg": "Connected. Waiting for game start..."})
+        while True:
+            msg = recv_json(conn)
+            if msg is None:
+                break
+
+            mtype = msg.get("type")
+            if mtype == "move":
+                move = str(msg.get("move", "")).lower().strip()
+                if move not in MOVES:
+                    send_json(conn, {"type": "error", "msg": f"Invalid move: {move}. Use rock/paper/scissors."})
+                    continue
+                room.set_move(player_id, move)
+                send_json(conn, {"type": "ack", "msg": f"Move received: {move}"})
+
+            elif mtype == "play_again":
+                again = bool(msg.get("again", False))
+                room.set_play_again(player_id, again)
+                send_json(conn, {"type": "ack", "msg": f"Play again = {again}"})
+
+            elif mtype == "quit":
+                break
+            else:
+                send_json(conn, {"type": "error", "msg": f"Unknown message type: {mtype}"})
+    except Exception:
+        pass
+
+def run_room(room: GameRoom):
+    p1, p2 = room.p1, room.p2
+    try:
+        send_json(p1, {"type": "start", "msg": "Game started! Send your move: rock/paper/scissors"})
+        send_json(p2, {"type": "start", "msg": "Game started! Send your move: rock/paper/scissors"})
+
+        round_no = 1
+        while True:
+            while True:
+                m1, m2, a1, a2 = room.get_state()
+                if m1 is not None and m2 is not None:
+                    break
+                threading.Event().wait(0.05)
+
+            m1, m2, _, _ = room.get_state()
+            res = judge(m1, m2)
+
+            if res == 0:
+                r1, r2 = "draw", "draw"
+            elif res == 1:
+                r1, r2 = "win", "lose"
+            else:
+                r1, r2 = "lose", "win"
+
+            send_json(p1, {"type": "result", "round": round_no, "you": m1, "opponent": m2, "outcome": r1})
+            send_json(p2, {"type": "result", "round": round_no, "you": m2, "opponent": m1, "outcome": r2})
+
+            send_json(p1, {"type": "ask_play_again", "msg": "Play again? (yes/no)"})
+            send_json(p2, {"type": "ask_play_again", "msg": "Play again? (yes/no)"})
+
+            while True:
+                _m1, _m2, a1, a2 = room.get_state()
+                if a1 is not None and a2 is not None:
+                    break
+                threading.Event().wait(0.05)
+
+            _, _, a1, a2 = room.get_state()
+            if a1 and a2:
+                room.reset_round()
+                round_no += 1
+                send_json(p1, {"type": "info", "msg": "New round!"})
+                send_json(p2, {"type": "info", "msg": "New round!"})
+            else:
+                send_json(p1, {"type": "end", "msg": "Game over."})
+                send_json(p2, {"type": "end", "msg": "Game over."})
+                break
+    finally:
+        room.close()
+
+def parse_args():
+    ap = argparse.ArgumentParser(description="Rock-Paper-Scissors Game Server")
+    ap.add_argument("--host", default="0.0.0.0", help="Bind host/IP (default: 0.0.0.0)")
+    ap.add_argument("--port", type=int, default=5050, help="Bind port (use 0 for auto-assign)")
+    ap.add_argument("--backlog", type=int, default=5, help="Listen backlog")
+    return ap.parse_args()
+
+def main():
+    args = parse_args()
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((args.host, args.port))
+
+        # 若 port=0，OS 會分配；用 getsockname() 拿到真實 port
+        bind_host, bind_port = s.getsockname()
+        print(f"[server] Listening on {bind_host}:{bind_port}")
+
+        s.listen(args.backlog)
+
+        print("[server] Waiting for Player 1...")
+        p1, addr1 = s.accept()
+        print(f"[server] Player 1 connected from {addr1}")
+
+        print("[server] Waiting for Player 2...")
+        p2, addr2 = s.accept()
+        print(f"[server] Player 2 connected from {addr2}")
+
+        room = GameRoom(p1, p2)
+        threading.Thread(target=player_thread, args=(room, p1, 1), daemon=True).start()
+        threading.Thread(target=player_thread, args=(room, p2, 2), daemon=True).start()
+
+        run_room(room)
+        print("[server] Room finished. Bye.")
+
+if __name__ == "__main__":
+    main()

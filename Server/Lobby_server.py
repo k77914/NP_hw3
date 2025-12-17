@@ -182,7 +182,7 @@ def handle_client(conn: socket.socket, addr):
                             "max_players": config["max_players"],
                             "room_password": request_data.get("room_password", ""),
                             "gaming": False,
-                            "ready_cnt": 1
+                            "version" : config["version"]
                         }
 
                         if gamename not in rooms:
@@ -290,7 +290,6 @@ def handle_client(conn: socket.socket, addr):
                         if player_room["players"] == []:
                             # close room
                             del rooms[gamename][room_id]
-
                     elif action == "ready_up":
                         idx = 0
                         for player, playeraddr, ready in player_room["players"]:
@@ -304,6 +303,45 @@ def handle_client(conn: socket.socket, addr):
                         host_addr = player_room["players"][0][1]
                         host_sock = player_sockets[host_addr]["conn"]
                         send_json(host_sock, response_format(action="player_ready", result="ok", data={}, msg=f"player {username}" + (" ready" if ready else " unready")))
+                    elif action == "start_game":
+                        # TODO check the player in the room is all ready.
+                        cnt = 0
+                        for player, playeraddr, ready in player_room["players"]:
+                            if ready:
+                                cnt += 1
+                            else:
+                                break
+                        if cnt != player_room["max_players"]:
+                            send_json(conn, response_format(action=action, result="error", data={"type": "wait"}, msg="Not everyone is ready!"))
+                        # check game version
+                        gamedir = GAME_STORE_DIR / game
+                        if not gamedir.exists():
+                            for player, player_addr, ready in player_room["players"]:
+                                player_conn = player_sockets[player_addr]["conn"]
+                                send_json(player_conn, response_format(action="room_closed", result="ok", data={}, msg="Game have been removed."))
+                                DB_request(DB_type.PLAYER, "update", {"username": player, "status": STATUS_DB.LOBBY})
+                            del rooms[gamename][room_id]
+                            continue
+                        # read config.json
+                        with open(gamedir / "config.json", "r") as f:
+                            config = f.read()
+                            # turn string into dict
+                            import json
+                            config = json.loads(config)
+                       
+                        # if not same version, notify all player to update game, and leave room
+                        if player_room["version"] != config["version"]:
+                            for player, player_addr, ready in player_room["players"]:
+                                player_conn = player_sockets[player_addr]["conn"]
+                                send_json(player_conn, response_format(action="room_closed", result="ok", data={}, msg="Please update the game version!"))
+                                DB_request(DB_type.PLAYER, "update", {"username": player, "status": STATUS_DB.LOBBY})
+                            del rooms[gamename][room_id]
+                        # if ok -> play game
+                        # fork a thread to run game server at given addr, port
+                        # sent the port information to all player in room
+
+                        # wait for game end.
+                        # return to the room ...
     except (ConnectionError, OSError) as e:
         logger.info(f"[!] {addr} disconnected: {e}")
     finally:
