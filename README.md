@@ -33,7 +33,7 @@ pygame – 遊戲開發可用之圖形庫，部分範本使用；
 
 3.1 安裝依賴
 ```bash
-pip install pygame pysym?
+pip install pygame sympy
 ```
 3.2 清理舊有資料（可選）
 

@@ -134,8 +134,8 @@ class PLAYER():
             print("3. Logout")
             op = nb_input(prompt=">> ")
             os.system('clear')
-            if op not in ["1", "2", "3", "4"]:
-                self.last_msg = "Please Enter a number bewtween 1 to 4!"
+            if op not in ["1", "2", "3"]:
+                self.last_msg = "Please Enter a number bewtween 1 to 3!"
                 continue
             match op:
                 case "1":# open game store
