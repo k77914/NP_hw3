@@ -112,7 +112,7 @@ def handle_client(conn: socket.socket, addr):
                         # store each file
                         for filename, filecontent in game_data['files'].items():
                             with open(create_path / folder_name / filename, 'wb') as f:
-                                f.write(filecontent.encode('latin1'))  # assuming filecontent is str, encode to bytes
+                                f.write(filecontent.encode('utf-8'))  # assuming filecontent is str, encode to bytes
                         
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Update game successfully!"))
 
@@ -136,7 +136,7 @@ def handle_client(conn: socket.socket, addr):
                         # store each file
                         for filename, filecontent in game_data['files'].items():
                             with open(create_path / folder_name / filename, 'wb') as f:
-                                f.write(filecontent.encode('latin1'))  # assuming filecontent is str, encode to bytes
+                                f.write(filecontent.encode('utf-8'))  # assuming filecontent is str, encode to bytes
                         
                         # only store config data to DB
                         del game_data['files']

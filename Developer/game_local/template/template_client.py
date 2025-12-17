@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import socket
 import json
 import sys
@@ -73,7 +70,6 @@ def main():
                 send_json(c, {"type": "move", "move": mv})
 
             elif mtype == "ack":
-                # 可不印，這裡保留方便 debug
                 # print(f"[client] {msg.get('msg')}")
                 pass
 
@@ -88,7 +84,6 @@ def main():
                 again = prompt_yesno(msg.get("msg", "Play again? (yes/no) ") + " ")
                 send_json(c, {"type": "play_again", "again": again})
                 if not again:
-                    # 也可以主動 quit（server 仍會正常 end）
                     send_json(c, {"type": "quit"})
 
             elif mtype == "info":

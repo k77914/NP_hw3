@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import socket
 import threading
 import json
@@ -165,7 +162,6 @@ def main():
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((args.host, args.port))
 
-        # 若 port=0，OS 會分配；用 getsockname() 拿到真實 port
         bind_host, bind_port = s.getsockname()
         print(f"[server] Listening on {bind_host}:{bind_port}")
 

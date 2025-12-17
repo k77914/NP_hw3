@@ -8,6 +8,7 @@ import queue
 import socket
 import os
 import json
+import subprocess
 
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
@@ -58,6 +59,8 @@ class PLAYER():
                     self.lobby_page()
                 case STATUS.ROOM:
                     self.room_page()
+                case STATUS.INGAME:
+                    self.game_page()
 
     def init_page(self):
         while True:
@@ -366,7 +369,7 @@ class PLAYER():
     def room_page(self):
         self.host = True if self.username == self.room_id else False
         while self.status == STATUS.ROOM:
-            os.system('clear')
+            # os.system('clear')
             self.print_and_reset_last_msg()
             print(f"----- Room: {self.room_id} -----")
             print(f"game: {self.game.rsplit('_', 1)[0]}")
@@ -427,8 +430,25 @@ class PLAYER():
                         self.status = STATUS.LOBBY
                         self.room_id = None
                         self.game = None
-                        continue                        
+                        continue
+                    elif op == "game_start":
+                        self.status = STATUS.INGAME                        
                     self.last_msg = "Invalid input, please try again."
+
+    def game_page(self):
+        recv_data = recv_json(self.sock)
+        act, result, resp_data, self.last_msg = breakdown(recv_data)
+        if act == "game_info":
+            host, port = resp_data["gameaddr"]
+            p = subprocess.Popen(["python",
+                                "-m",
+                                "NP_hw3.Player.download." + self.username + "." + self.game + "." + self.game.rsplit("_", 1)[0] + "_client",
+                                "--host " + host,
+                                "-- port " + port])
+            p.wait()
+        else:
+            self.last_msg = "Can't receive game server's information."
+        self.status = STATUS.ROOM
 
     def print_and_reset_last_msg(self):
         if self.last_msg and self.last_msg != "":
@@ -474,6 +494,10 @@ def nb_input(prompt=">> ", conn=None, default=""):
                     elif act == "player_ready":
                         print(f"{last_msg}")
                         print("Press enter to reflesh")
+
+                    elif act == "game_start":
+                        print(f"{last_msg}")
+                        return "game_start"
         # check stdin
         r, _, _ = select.select([sys.stdin], [], [], 0.05)
         if r:

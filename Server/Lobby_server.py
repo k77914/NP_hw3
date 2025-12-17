@@ -2,6 +2,8 @@ import socket, threading, uuid
 from loguru import logger
 from NP_hw3.config import LOBBY_HOST, LOBBY_PORT, DB_HOST, DB_PORT
 from NP_hw3.TCP_tool import send_json, recv_json, set_keepalive
+import os
+import subprocess
 import pathlib
 
 GAME_STORE_DIR = pathlib.Path(__file__).resolve().parent / "GameStore"
@@ -46,6 +48,13 @@ def breakdown_request(request: dict):
 def response_format(action, result, data:dict, msg):
     return {"action": action, "result": result, "data": data, "msg": msg}
 
+def find_free_port():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
 def DB_request(DB_type, action, data):
     with socket.create_connection((DB_HOST, DB_PORT)) as db:
         db.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -69,6 +78,10 @@ def DB_request(DB_type, action, data):
         db.close()
     return resp
 # ============= #
+def launch_game_server(game_floder_name, gamesrv_addr):
+    p = subprocess.Popen(["python", "-m", "NP_hw3.Server.GameStore." + game_floder_name + "." + game_floder_name.rsplit('_', 1)[0]+ "_server"
+                          "--host " + gamesrv_addr[0], "--port ", gamesrv_addr[1]])
+
 
 def handle_client(conn: socket.socket, addr):
     set_keepalive(conn)
@@ -140,7 +153,7 @@ def handle_client(conn: socket.socket, addr):
                             if file.name == "config.json" or "server.py" in file.name:
                                 continue
                             with open(file, "rb") as f:
-                                files_data[file.name] = f.read().decode('latin1')
+                                files_data[file.name] = f.read().decode('utf-8')
                         send_json(conn, response_format(action=action, result="ok", data={"config": config, "files": files_data}, msg="Download success"))
                     elif action == "check_version":
                         gamename = request_data["gamename"]
@@ -338,10 +351,21 @@ def handle_client(conn: socket.socket, addr):
                             del rooms[gamename][room_id]
                         # if ok -> play game
                         # fork a thread to run game server at given addr, port
-                        # sent the port information to all player in room
+                        gameaddr = (LOBBY_HOST, find_free_port())
 
-                        # wait for game end.
-                        # return to the room ...
+                        th = threading.Thread(target=launch_game_server, args=(game, gameaddr, ), daemon=True)
+                        th.start()
+
+                        # send info to player
+                        for player, player_addr, _ in player_room["players"]:
+                            player_conn = player_sockets[player_addr]["conn"]
+                            send_json(player_conn, response_format(action="game_start", result="ok", data={}, msg="GameStart"))
+                        
+                        # send game info
+                        for player, player_addr, _ in player_room["players"]:
+                            player_conn = player_sockets[player_addr]["conn"]
+                            send_json(player_conn, response_format(action="game_info", result="ok", data={"gameaddr": gameaddr}, msg="game server Ip address"))
+
     except (ConnectionError, OSError) as e:
         logger.info(f"[!] {addr} disconnected: {e}")
     finally:
