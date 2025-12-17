@@ -45,9 +45,9 @@ def main():
         print("Usage: python3 game_client.py <server_ip> <server_port>")
         sys.exit(1)
 
-    host = sys.argv[1]
+    host = sys.argv[2]
     try:
-        port = int(sys.argv[2])
+        port = int(sys.argv[4])
     except (IndexError, ValueError):
         print("Invalid port. Please provide an integer port number.")
         sys.exit(1)

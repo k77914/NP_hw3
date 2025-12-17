@@ -4,7 +4,7 @@ import argparse
 import threading
 import queue
 from typing import Dict, Any, Optional, Tuple, List
-
+import sys
 import tkinter as tk
 from tkinter import messagebox
 
@@ -243,15 +243,17 @@ class SnakeGUIClient:
 
 def parse_args():
     ap = argparse.ArgumentParser(description="Two-Player Snake GUI Game Client")
-    ap.add_argument("host", help="Server IP/hostname")
-    ap.add_argument("port", type=int, help="Server port")
+    ap.add_argument("--host", help="Server IP/hostname")
+    ap.add_argument("--port", type=int, help="Server port")
     ap.add_argument("--cell", type=int, default=24, help="Cell size in pixels")
     return ap.parse_args()
 
 
 def main():
     args = parse_args()
-    client = SnakeGUIClient(args.host, args.port, cell_px=args.cell)
+    host = sys.argv[2]
+    port = int(sys.argv[4])
+    client = SnakeGUIClient(host, port, cell_px=args.cell)
     client.connect()
 
 

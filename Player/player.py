@@ -232,6 +232,7 @@ class PLAYER():
 
                                             print("Enter your comment:")
                                             comment = nb_input(">>")
+                                            os.system('clear')
                                             send_json(self.sock, format(self.status, "submit", data={"gamename": game_name, "comment": comment}, token=self.token))
                                             recv_data = recv_json(self.sock)
                                             act, result, resp_data, self.last_msg = breakdown(recv_data)
@@ -257,13 +258,15 @@ class PLAYER():
                     if not available_games:
                         self.last_msg = "No downloaded games found. Please download a game first."
                         continue
-                    print("=== Available Games ===")
+                    print("=== Available Games List ===")
                     for idx, game_dir in enumerate(available_games, start=1):
                         game, author = game_dir.name.rsplit("_", 1)
                         print(f"{idx}. {game}, by {author}")
                     print("-------------------------------------")
-                    print("Choose a game number to play, or '0' to go back")
+                    print("0. go back")
+                    print("Choose a game number to play")
                     op = nb_input(">> ")
+                    os.system('clear')
                     if op == "0":
                         continue
                     if not op.isdigit() or int(op) < 1 or int(op) > len(available_games):
@@ -321,10 +324,11 @@ class PLAYER():
                     while True:
                         print("--------------------------")
                         print("Game: ", selected_game_dir.name.rsplit("_", 1)[0])
+                        print("--------------------------")
                         print("1. Create Room")
                         print("2. Join Room")
                         print(f"3. Learn More about {selected_game_dir.name.rsplit('_', 1)[0]}")
-                        print("4. Back to Lobby")
+                        print("0. Back to Lobby")
                         op = nb_input(">> ")
                         os.system('clear')
                         match op:
@@ -391,7 +395,7 @@ class PLAYER():
                                         print(f.read())
                                 else:
                                     print("No additional information available for this game.")
-                            case "4": # back to lobby
+                            case "0": # back to lobby
                                 self.last_msg = "Cancel playing, back to lobby."
                                 break
                             case _:
@@ -431,6 +435,7 @@ class PLAYER():
             print("1. Start Game" if self.host else "1. Ready / not ready")
             print("2. Leave Room")
             op = nb_input(">> ", self.sock)
+            os.system('clear')
             match op:
                 case "1": # start game
                     if self.host:
@@ -438,6 +443,7 @@ class PLAYER():
                         recv_data = recv_json(self.sock)
                         act, result, resp_data, self.last_msg = breakdown(recv_data)
                         if act == "game_start" and result == "ok":
+                            os.system("clear")
                             print("Game started successfully!")
                             self.status = STATUS.INGAME
                             break
@@ -468,6 +474,7 @@ class PLAYER():
                     if op == "":
                         continue
                     elif op == "closed, goback":
+                        self.last_msg = "Host close room (disconnect / close room), back to Lobby"
                         self.status = STATUS.LOBBY
                         self.room_id = None
                         self.game = None
@@ -541,6 +548,7 @@ def nb_input(prompt=">> ", conn=None, default=""):
                         print("Press enter to reflesh")
 
                     elif act == "game_start":
+                        os.system("clear")
                         print(f"{last_msg}")
                         return "game_start"
         # check stdin

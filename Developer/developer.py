@@ -378,19 +378,21 @@ class DEVELOPER():
                         print("1. CUI template (2 people)")
                         print("2. GUI template (2 people)")
                         print("3. CUI template (3 people)")
+                        print("0. for go back.")
                         which_template = nb_input(">> ")
-                        if which_template in ["1", "2", "3"]:
+                        if which_template in ["1", "2", "3", "0"]:
                             break
                         else:
                             print("Please enter the number of 1, 2, 3.")
                     
-                    
+                    if which_template == "0":
+                        continue
                     
                     
                     try:
                         gamename = nb_input("Enter your game name: ")
                         # cp whole template folder to working directory
-                        template_dir = BASE_DIR_LOCAL / "template"
+                        template_dir = BASE_DIR_LOCAL / substitu[int(which_template)-1]
                         # os.mkdir(f"./game_local/{self.username}", exist_ok=True)
                         os.system(f"cp -r {template_dir} {BASE_DIR_LOCAL}/{self.username}")
                         # rename files
@@ -462,6 +464,7 @@ def fill_config(gamename: str, username: str) -> dict:
     print("Use cntrl+c to abort anytime.")
     print("----------------------------------")
     # max_players
+    print(f"====  {gamename} ====")
     while True:
         max_players = nb_input("Enter max players [default: 2]: ", default="2")
         if max_players.isdigit() and int(max_players) >= 2:
