@@ -30,7 +30,7 @@ def clear_dir(dir_path: Path, project_root: Path, dry_run: bool = False) -> None
 
     for item in items:
         # 可選：保留 .gitkeep（如果你有用）
-        if item.name == ".gitkeep" or item.name == "template":
+        if item.name == ".gitkeep" or item.name == "template_CUI" or item.name == "template_GUI" or item.name == "template_CUI_3":
             continue
 
         if dry_run:

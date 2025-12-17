@@ -41,6 +41,12 @@ class GameRoom:
         self.lock = threading.Lock()
         self.moves: Dict[int, Optional[str]] = {1: None, 2: None}
         self.play_again: Dict[int, Optional[bool]] = {1: None, 2: None}
+        # Track if either player has disconnected. This allows the
+        # game to detect a dropped connection or quit request and
+        # notify the remaining player instead of leaving them waiting
+        # indefinitely. A value of True indicates that the player has
+        # either explicitly quit or the connection closed unexpectedly.
+        self.disconnected: Dict[int, bool] = {1: False, 2: False}
 
     def close(self):
         for c in (self.p1, self.p2):
@@ -57,6 +63,18 @@ class GameRoom:
         with self.lock:
             self.moves = {1: None, 2: None}
             self.play_again = {1: None, 2: None}
+
+    def set_disconnected(self, player_id: int) -> None:
+        """Mark a player as disconnected. This should be called when a
+        player's connection is lost or they send a quit message. The
+        server can then end the current game session gracefully."""
+        with self.lock:
+            self.disconnected[player_id] = True
+
+    def get_disconnected(self) -> Dict[int, bool]:
+        """Return a copy of the disconnected status for both players."""
+        with self.lock:
+            return dict(self.disconnected)
 
     def set_move(self, player_id: int, move: str) -> None:
         with self.lock:
@@ -75,7 +93,12 @@ def player_thread(room: GameRoom, conn: socket.socket, player_id: int):
         send_json(conn, {"type": "welcome", "player_id": player_id, "msg": "Connected. Waiting for game start..."})
         while True:
             msg = recv_json(conn)
+            # If the connection is closed (msg is None), mark this player as
+            # disconnected and break out of the loop. This ensures the
+            # main game loop knows to terminate instead of waiting for a
+            # move from a player that is no longer connected.
             if msg is None:
+                room.set_disconnected(player_id)
                 break
 
             mtype = msg.get("type")
@@ -93,6 +116,9 @@ def player_thread(room: GameRoom, conn: socket.socket, player_id: int):
                 send_json(conn, {"type": "ack", "msg": f"Play again = {again}"})
 
             elif mtype == "quit":
+                # Explicit quit message from client. Mark player as
+                # disconnected so the server can end the game gracefully.
+                room.set_disconnected(player_id)
                 break
             else:
                 send_json(conn, {"type": "error", "msg": f"Unknown message type: {mtype}"})
@@ -107,12 +133,37 @@ def run_room(room: GameRoom):
 
         round_no = 1
         while True:
+            # Wait for both players to send their move. During this wait
+            # loop, also monitor if either player has disconnected.
             while True:
                 m1, m2, a1, a2 = room.get_state()
+                disc = room.get_disconnected()
+                # If any player has disconnected, end the game early.
+                if disc[1] or disc[2]:
+                    break
                 if m1 is not None and m2 is not None:
                     break
                 threading.Event().wait(0.05)
 
+            # Check if any player disconnected before both moves arrived.
+            disc = room.get_disconnected()
+            if disc[1] or disc[2]:
+                # Determine which player is still connected (if any).
+                # Send an "end" message to the player that did not disconnect
+                # so that they can exit gracefully instead of waiting.
+                try:
+                    if disc[1] and not disc[2]:
+                        send_json(p2, {"type": "end", "msg": "Your opponent has left or disconnected. Game over."})
+                    elif disc[2] and not disc[1]:
+                        send_json(p1, {"type": "end", "msg": "Your opponent has left or disconnected. Game over."})
+                except Exception:
+                    # The remaining player may already be gone; ignore send errors.
+                    pass
+                # Break out of the game loop. The room will be closed in
+                # the finally block below.
+                break
+
+            # Both moves have been received, determine the result.
             m1, m2, _, _ = room.get_state()
             res = judge(m1, m2)
 
@@ -123,8 +174,17 @@ def run_room(room: GameRoom):
             else:
                 r1, r2 = "lose", "win"
 
-            send_json(p1, {"type": "result", "round": round_no, "you": m1, "opponent": m2, "outcome": r1})
-            send_json(p2, {"type": "result", "round": round_no, "you": m2, "opponent": m1, "outcome": r2})
+            # Send the result to both players. Even if one player has
+            # disconnected after sending a move, we still attempt to send
+            # the result; send_json is already tolerant of send errors.
+            try:
+                send_json(p1, {"type": "result", "round": round_no, "you": m1, "opponent": m2, "outcome": r1})
+            except Exception:
+                pass
+            try:
+                send_json(p2, {"type": "result", "round": round_no, "you": m2, "opponent": m1, "outcome": r2})
+            except Exception:
+                pass
 
     finally:
         room.close()

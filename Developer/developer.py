@@ -58,14 +58,14 @@ class DEVELOPER():
     
     def init_page(self):
         while self.status == STATUS.INIT:
-            # os.system('clear')
+            os.system('clear')
             self.print_and_reset_last_msg()
             print("----- init page (Developer mode) -----")
             print("Welcome to Online Game Shop System")
             print("1. Register")
             print("2. Login")
             print("3. Switch to player mode")
-            print("4. Exit")
+            print("0. Exit")
 
             op = nb_input(prompt=">> ")
             match op:
@@ -115,7 +115,7 @@ class DEVELOPER():
                     break
 
                 # === exit === #
-                case "4":
+                case "0":
                     print("Exit!")
                     self.exit = True
                     break
@@ -133,7 +133,7 @@ class DEVELOPER():
             print("1. Manage your game on game store")
             print("2. Upload your game to game store")
             print("3. Fast start to cteate game")
-            print("4. logout")
+            print("0. logout")
             op = nb_input("Enter >> ")
             match op:
                 case "1":
@@ -366,10 +366,27 @@ class DEVELOPER():
                     os.system('clear')
                     print("=== Fast create game ===")
                     print("Please enter the following info to create your game template:")
-                    print("This is a CUI version game template.")
+                    print("This is a game template.")
                     print("Note: You need to modify the game logic for your game later!")
                     print("Use cntrl+c to abort anytime.")
                     print("-----------------------------------")
+
+                    substitu = ["template_CUI", "template_GUI", "template_CUI_3"]
+                    while True:
+                        print()
+                        print("Select one of template")
+                        print("1. CUI template (2 people)")
+                        print("2. GUI template (2 people)")
+                        print("3. CUI template (3 people)")
+                        which_template = nb_input(">> ")
+                        if which_template in ["1", "2", "3"]:
+                            break
+                        else:
+                            print("Please enter the number of 1, 2, 3.")
+                    
+                    
+                    
+                    
                     try:
                         gamename = nb_input("Enter your game name: ")
                         # cp whole template folder to working directory
@@ -377,7 +394,7 @@ class DEVELOPER():
                         # os.mkdir(f"./game_local/{self.username}", exist_ok=True)
                         os.system(f"cp -r {template_dir} {BASE_DIR_LOCAL}/{self.username}")
                         # rename files
-                        os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/template {BASE_DIR_LOCAL}/{self.username}/{gamename}")
+                        os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{substitu[int(which_template)-1]} {BASE_DIR_LOCAL}/{self.username}/{gamename}")
                         os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_client.py {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_client.py")
                         os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_server.py {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_server.py")
                         os.system(f"mv {BASE_DIR_LOCAL}/{self.username}/{gamename}/template_readme.txt {BASE_DIR_LOCAL}/{self.username}/{gamename}/{gamename}_readme.txt")
@@ -400,7 +417,7 @@ class DEVELOPER():
                     except KeyboardInterrupt:
                         print("\nAborted!")
                 # === logout === #
-                case "4":
+                case "0":
                     send_json(self.sock, format(status=self.status, action="logout", data={"username": self.username}, token=self.token))
                     recv_data = recv_json(self.sock)
                     act, result, resp_data, self.last_msg = breakdown(recv_data)

@@ -154,7 +154,7 @@ def handle_client(conn: socket.socket, addr):
                         # read all files instead of server
                         files_data = {}
                         for file in gamedir.iterdir():
-                            if file.name == "config.json" in file.name or "server.py"in file.name  or "__pycache__" in file.name:
+                            if file.name == "config.json" or "server.py"in file.name  or "__pycache__" in file.name:
                                 continue
                             with open(file, "rb") as f:
                                 logger.info("printintintitnitn")
@@ -326,7 +326,7 @@ def handle_client(conn: socket.socket, addr):
                                 player_room["players"][idx][2] = True if not player_room["players"][idx][2] else False
                                 break
                             idx += 1
-                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Ready" if ready else "Cancel ready"))
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Cancel Ready" if ready else "ready"))
                         
 
                         host_addr = player_room["players"][0][1]

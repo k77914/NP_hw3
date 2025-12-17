@@ -38,12 +38,19 @@ def prompt_yesno(msg: str) -> bool:
         print("Please answer yes/no.")
 
 def main():
+    # Expect the script name followed by host and port. For example:
+    #   python3 game_client.py 127.0.0.1 5050
+    # In this case, sys.argv[1] is the host and sys.argv[2] is the port.
     if len(sys.argv) < 3:
         print("Usage: python3 game_client.py <server_ip> <server_port>")
         sys.exit(1)
 
-    host = sys.argv[2]
-    port = int(sys.argv[4])
+    host = sys.argv[1]
+    try:
+        port = int(sys.argv[2])
+    except (IndexError, ValueError):
+        print("Invalid port. Please provide an integer port number.")
+        sys.exit(1)
 
     # Connection retry logic to handle server startup delay
     import time

@@ -23,7 +23,9 @@ Developer/game_local/*
 
 # 先放行資料夾本身（關鍵）
 !Developer/game_local/
-!Developer/game_local/template/
+!Developer/game_local/template_CUI/
+!Developer/game_local/template_GUI/
+!Developer/game_local/template_CUI_3/
 
 # 再放行 template 裡的所有檔案
 !Developer/game_local/template/**
