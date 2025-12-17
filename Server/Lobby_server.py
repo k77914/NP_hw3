@@ -129,9 +129,10 @@ def handle_client(conn: socket.socket, addr):
                 case STATUS.LOBBY:
                     if token != token_srv:
                         # Not matching token, logout!
+
+                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         username = None
                         token_srv = None
-                        DB_request(DB_type.PLAYER, "update", {"username": username, "status": STATUS_DB.INIT, "token": None})
                         send_json(conn, response_format(action=action, result="token miss", data={"status_change": STATUS.INIT}, msg="Miss matching token, logout"))
                         
                     elif action == "open_shop":
@@ -153,7 +154,7 @@ def handle_client(conn: socket.socket, addr):
                         # read all files instead of server
                         files_data = {}
                         for file in gamedir.iterdir():
-                            if file.name == "config.json" or "server.py" in file.name:
+                            if file.name == "config.json" or "server.py" or "__pycache__" in file.name:
                                 continue
                             with open(file, "rb") as f:
                                 files_data[file.name] = f.read().decode('utf-8')
@@ -259,6 +260,16 @@ def handle_client(conn: socket.socket, addr):
                         username = None
                         token_srv = None
                         send_json(conn, response_format(action=action, result="ok", data={}, msg="Logout successfully!"))
+                    elif action == "check_play":
+                        resp_db_query = DB_request(DB_type.PLAYER, "query", data={"username": username})
+                        if request_data["gamename"] in resp_db_query["have_play"]:
+                            send_json(conn, response_format(action=action, result="ok", data={}, msg="Ok"))
+                        else:
+                            send_json(conn, response_format(action=action, result="error", data={}, msg="Please play once."))
+                    elif action == "submit":
+                        newcomment = (request_data["comment"], username, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+                        DB_request(DB_type.GAME_STORE, "update", data={"gamename":request_data["gamename"], "new_comment": newcomment})
+                        send_json(conn, response_format(action=action, result="ok", data={}, msg="Add comment!"))
                     else:
                         send_json(conn, response_format(action=action, result="error", data={}, msg="Unknown operation"))
 
@@ -369,6 +380,10 @@ def handle_client(conn: socket.socket, addr):
                         for player, player_addr, _ in player_room["players"]:
                             player_conn = player_sockets[player_addr]["conn"]
                             send_json(player_conn, response_format(action="game_info", result="ok", data={"gameaddr": gameaddr}, msg="game server Ip address"))
+                        
+                        # update play
+                        for player, player_addr, _ in player_room["players"]:
+                            DB_request(DB_type.PLAYER, action="update", data={"username": player, "play": gamename})
 
     except (ConnectionError, OSError) as e:
         logger.info(f"[!] {addr} disconnected: {e}")

@@ -168,12 +168,13 @@ class PLAYER():
                             game_name = list(games.keys())[game_idx]
                             game_info = games[game_name]
                             os.system('clear')
-                            while True:
-                                
+                            while True: 
                                 print(f"Selected Game: {game_info['gamename']} by {game_info['author']}")
                                 print("1. See Details")
                                 print("2. Download Game")
-                                print("3. Back to Game List")
+                                print("3. View comments")
+                                print("4. Make a comment")
+                                print("0. Back to Game List")
                                 op = nb_input(">> ")
                                 os.system('clear')
                                 match op:
@@ -213,7 +214,35 @@ class PLAYER():
                                             break
                                         else:
                                             print("Failed to download the game.")
-                                    case "3": # go back game list
+                                    case "3": # view comments
+                                        os.system("clear")
+                                        if game_info["comments"] == []:
+                                            print("No comments on this game!")
+                                        else:
+                                            idx = 1
+                                            for comments in game_info['comments']:
+                                                print(f"{idx}. {comments[0]} -- by [{comments[1]}] at {comments[2]}")
+                                        _ = nb_input("Press Enter to continue", default="")
+                                    case "4": # comment
+                                        os.system("clear")
+                                        send_json(self.sock, format(self.status, "check_play", data={"gamename": game_name}, token=self.token))
+                                        recv_data = recv_json(self.sock)
+                                        act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                        if act == "check_play" and result == "ok":
+
+                                            print("Enter your comment:")
+                                            comment = nb_input(">>")
+                                            send_json(self.sock, format(self.status, "submit", data={"gamename": game_name, "comment": comment}, token=self.token))
+                                            recv_data = recv_json(self.sock)
+                                            act, result, resp_data, self.last_msg = breakdown(recv_data)
+                                            print(recv_data)
+                                            if act == "submit" and result == "ok":
+                                                print("submit ok")
+                                                break
+                                        else:
+                                            print("You have to play once!")
+
+                                    case "0": # go back game list
                                         os.system('clear')
 
                                         break
@@ -275,7 +304,7 @@ class PLAYER():
                                     for filename, filecontent in resp_data["files"].items():
                                         file_path = selected_game_dir / filename
                                         with open(file_path, "wb") as f:
-                                            f.write(filecontent.encode('latin1'))
+                                            f.write(filecontent.encode('utf-8'))
                                     
                                     print(f"Game {selected_game_dir.name} updated successfully!")
                                     break

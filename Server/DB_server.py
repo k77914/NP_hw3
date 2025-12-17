@@ -102,7 +102,8 @@ class UDB(DB):
                     new_account = {
                         "password": args["password"],
                         "status": "offline",
-                        "token": ""
+                        "token": "",
+                        "have_play": []
                     }
                     self._state[args["username"]] = new_account
                     dirty = True
@@ -113,6 +114,9 @@ class UDB(DB):
                     if args["username"] in self._state:
                         self._state[args["username"]]["status"] = args.get("status", self._state[args["username"]]["status"])
                         self._state[args["username"]]["token"] = args.get("token", self._state[args["username"]]["token"])
+                        p = args.get("play", None)
+                        if p != None and p not in self._state[args["username"]]["have_play"]:
+                            self._state[args["username"]]["have_play"].append(p)
                         dirty = True
                         batch += 1
 
@@ -259,10 +263,15 @@ class GSDB(DB):
 
             if op == "update":
                 with self._lock:
-                    if args["gamename"]+"_"+args["username"] in self._state:
+
+                    if args.get("config", {}) != {} and args["gamename"]+"_"+args["username"] in self._state:
+                        args["config"]["comments"] = self._state[args["gamename"]+"_"+args["username"]]["comments"]
                         self._state[args["gamename"]+"_"+args["username"]] = args["config"]
-                        dirty = True
-                        batch += 1
+                    else:
+                        self._state[args["gamename"]]["comments"].append(args["new_comment"]) 
+                    dirty = True
+                    batch += 1
+
 
             if op == "delete":
                 with self._lock:
